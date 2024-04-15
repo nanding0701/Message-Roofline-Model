@@ -49,7 +49,7 @@ __global__ void bw(double *data_d, int *flag_d,
                                  data_d + (bid * (len / nblocks)),
                                  len / nblocks, peer);
 
-    // roc_shmem_fence();
+    roc_shmem_fence();
     // if (tid == 0) {
     //   roc_shmem_int_p(&flag_d[i], sig, peer);
     // }
@@ -96,12 +96,18 @@ int main(int argc, char *argv[]) {
   float milliseconds;
   hipEvent_t start, stop;
 
-  //    int rank,nranks;
-  //    MPI_Init(&argc, &argv);
-  //    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  //    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
-  //    printf("Rank %d, MPI \n",rank);
-  //    fflush(stdout);
+  int rank, nranks;
+  MPI_Init(&argc, &argv);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+  printf("Rank %d, MPI \n", rank);
+  fflush(stdout);
+
+  int ndevices;
+  CHECK_HIP(hipGetDeviceCount(&ndevices));
+  CHECK_HIP(hipSetDevice(mype % ndevices));
+  int get_cur_dev;
+  CHECK_HIP(hipGetDevice(&get_cur_dev));
 
   CHECK_HIP(hipEventCreate(&start));
   CHECK_HIP(hipEventCreate(&stop));
@@ -120,11 +126,6 @@ int main(int argc, char *argv[]) {
     gpu_id_list = rocr_visible_devices;
   }
 
-  int ndevices;
-  CHECK_HIP(hipGetDeviceCount(&ndevices));
-  CHECK_HIP(hipSetDevice(mype % ndevices));
-  int get_cur_dev;
-  CHECK_HIP(hipGetDevice(&get_cur_dev));
   //    char name[MPI_MAX_PROCESSOR_NAME];
   int resultlength;
   //    MPI_Get_processor_name(name, &resultlength);
