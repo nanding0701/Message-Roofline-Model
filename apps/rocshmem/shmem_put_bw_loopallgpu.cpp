@@ -40,19 +40,12 @@ __global__ void bw(double *data_d, int *flag_d,
   int nblocks = gridDim.x;
   int sig = 1;
   roc_shmem_wg_init();
-  // if (tid==0 && bid==0) printf("GPU: pe=%d, peer=%d, size=%d\n",pe, peer,
-  // len);
   for (i = 0; i < iter; i++) {
-    // if (tid==0 && bid==0) printf("%d, peer=%d, size=%d, iter=%d\n",pe, peer,
-    // len,i);
     roc_shmemx_double_put_nbi_wg(data_d + (bid * (len / nblocks)),
                                  data_d + (bid * (len / nblocks)),
                                  len / nblocks, peer);
 
     roc_shmem_fence();
-    // if (tid == 0) {
-    //   roc_shmem_int_p(&flag_d[i], sig, peer);
-    // }
     //  synchronizing across blocks
     __syncthreads();
     if (!tid) {
@@ -127,17 +120,10 @@ int main(int argc, char *argv[]) {
     gpu_id_list = rocr_visible_devices;
   }
 
-  //    char name[MPI_MAX_PROCESSOR_NAME];
-  int resultlength;
-  //    MPI_Get_processor_name(name, &resultlength);
-  //    printf("IN USE - mpi %d/%d, roc_shmem %d/%d , ndevices=%d,cur=%d,
-  //    GPU_ID=%s,node=%s\n", rank, nranks, mype, npes, ndevices, get_cur_dev,
-  //    gpu_id_list, name);
   printf("roc_shmem %d/%d , ndevices=%d,cur=%d, GPU_ID=%s\n", mype, npes,
          ndevices, get_cur_dev, gpu_id_list);
   fflush(stdout);
 
-  // data_d = (double *)roc_shmem_malloc(sizeof(double));
   data_d = (double *)roc_shmem_malloc(MAX_MSG_SIZE);
   flag_d = (int *)roc_shmem_malloc((iter + skip) * sizeof(int));
   CHECK_HIP(hipMemset(data_d, 0, MAX_MSG_SIZE));
@@ -149,19 +135,15 @@ int main(int argc, char *argv[]) {
   if (atoi(argv[2]) > 0) max_blocks = atoi(argv[2]);
   if (atoi(argv[3]) > 0) max_threads = atoi(argv[3]);
   if (atoi(argv[4]) > 0) iter = atoi(argv[4]);
-  if (!mype)
+  if (!mype) {
     printf("max_blocks=%d, max_threads=%d, iter=%d\n", max_blocks, max_threads,
            iter);
+  }
   fflush(stdout);
   for (int peer = mypeer; peer < 8; peer++) {
-    // if (peer==3) continue;
-    // if (peer==5) continue;
-    // if (peer==7) continue;
     if (mype == 0) {
       i = 0;
       for (int size = 8; size <= MAX_MSG_SIZE; size *= 2) {
-        // printf("mysize=%d\n",size);
-        // fflush(stdout);
         CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
         bw<<<max_blocks, max_threads>>>(
             data_d, flag_d, counter_d, size / sizeof(double), mype, skip, peer);
