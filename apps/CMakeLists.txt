@@ -13,3 +13,6 @@ endif()
 
 message(STATUS "Adding mpi apps...")
 add_subdirectory(mpi)
+
+message(STATUS "Adding rocshmem apps...")
+add_subdirectory(rocshmem)
