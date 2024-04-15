@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
         CHECK_HIP(hipEventElapsedTime(&milliseconds, start, stop));
         printf("peer,%d,size,%d,iter, %d, bw,%f\n", peer, size, iter,
                size / (milliseconds * (B_TO_GB / (iter * MS_TO_S))));
-        // roc_shmem_barrier_all();
+        roc_shmem_barrier_all();
         i++;
       }
     } else {
@@ -196,6 +196,6 @@ finalize:
     CHECK_HIP(hipFree(counter_d));
   }
   roc_shmem_finalize();
-  //    MPI_Finalize();
+  MPI_Finalize();
   return 0;
 }
