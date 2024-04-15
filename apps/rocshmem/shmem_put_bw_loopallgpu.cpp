@@ -101,13 +101,14 @@ int main(int argc, char *argv[]) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nranks);
   printf("Rank %d, MPI \n", rank);
-  fflush(stdout);
 
-  int ndevices;
+  // Set the device before calling `roc_shmem_init`
+  int ndevices, get_cur_dev;
   CHECK_HIP(hipGetDeviceCount(&ndevices));
-  CHECK_HIP(hipSetDevice(mype % ndevices));
-  int get_cur_dev;
+  CHECK_HIP(hipSetDevice(rank % ndevices));
   CHECK_HIP(hipGetDevice(&get_cur_dev));
+
+  printf("Device ID %d, HIP \n", get_cur_dev);
 
   CHECK_HIP(hipEventCreate(&start));
   CHECK_HIP(hipEventCreate(&stop));
