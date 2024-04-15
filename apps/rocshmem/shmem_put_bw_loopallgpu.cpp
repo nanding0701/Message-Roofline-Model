@@ -45,7 +45,10 @@ __global__ void bw(double *data_d, int *flag_d,
   for (i = 0; i < iter; i++) {
     // if (tid==0 && bid==0) printf("%d, peer=%d, size=%d, iter=%d\n",pe, peer,
     // len,i);
-    roc_shmemx_double_put_nbi_wg(&data_d[0], &data_d[0], len / nblocks, peer);
+    roc_shmemx_double_put_nbi_wg(data_d + (bid * (len / nblocks)),
+                                 data_d + (bid * (len / nblocks)),
+                                 len / nblocks, peer);
+
     // roc_shmem_fence();
     // if (tid == 0) {
     //   roc_shmem_int_p(&flag_d[i], sig, peer);
