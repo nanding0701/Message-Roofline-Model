@@ -20,14 +20,24 @@
 #define THREADS_PER_BLOCK 1024
 using namespace rocshmem;
 
+#define CHECK_HIP(cmd)                                                        \
+  {                                                                           \
+    hipError_t error = cmd;                                                   \
+    if (error != hipSuccess) {                                                \
+      fprintf(stderr, "error: '%s'(%d) at %s:%d\n", hipGetErrorString(error), \
+              error, __FILE__, __LINE__);                                     \
+      exit(EXIT_FAILURE);                                                     \
+    }                                                                         \
+  }
+
 __global__ void bw(double *data_d, int *flag_d,
                    volatile unsigned int *counter_d, int len, int pe, int iter,
                    int peer) {
   int i;
   unsigned int counter;
-  int tid = hipThreadIdx_x;
-  int bid = hipBlockIdx_x;
-  int nblocks = hipGridDim_x;
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int nblocks = gridDim.x;
   int sig = 1;
   roc_shmem_wg_init();
   // if (tid==0 && bid==0) printf("GPU: pe=%d, peer=%d, size=%d\n",pe, peer,
@@ -90,8 +100,8 @@ int main(int argc, char *argv[]) {
   //    printf("Rank %d, MPI \n",rank);
   //    fflush(stdout);
 
-  hipEventCreate(&start);
-  hipEventCreate(&stop);
+  CHECK_HIP(hipEventCreate(&start));
+  CHECK_HIP(hipEventCreate(&stop));
 
   roc_shmem_init();
   mype = roc_shmem_my_pe();
@@ -108,10 +118,10 @@ int main(int argc, char *argv[]) {
   }
 
   int ndevices;
-  hipGetDeviceCount(&ndevices);
-  hipSetDevice(mype % ndevices);
+  CHECK_HIP(hipGetDeviceCount(&ndevices));
+  CHECK_HIP(hipSetDevice(mype % ndevices));
   int get_cur_dev;
-  hipGetDevice(&get_cur_dev);
+  CHECK_HIP(hipGetDevice(&get_cur_dev));
   //    char name[MPI_MAX_PROCESSOR_NAME];
   int resultlength;
   //    MPI_Get_processor_name(name, &resultlength);
@@ -125,11 +135,11 @@ int main(int argc, char *argv[]) {
   // data_d = (double *)roc_shmem_malloc(sizeof(double));
   data_d = (double *)roc_shmem_malloc(MAX_MSG_SIZE);
   flag_d = (int *)roc_shmem_malloc((iter + skip) * sizeof(int));
-  hipMemset(data_d, 0, MAX_MSG_SIZE);
-  hipMemset(flag_d, 0, (iter + skip) * sizeof(int));
-  hipMalloc((void **)&counter_d, sizeof(unsigned int) * 2);
-  hipMemset(counter_d, 0, sizeof(unsigned int) * 2);
-  hipDeviceSynchronize();
+  CHECK_HIP(hipMemset(data_d, 0, MAX_MSG_SIZE));
+  CHECK_HIP(hipMemset(flag_d, 0, (iter + skip) * sizeof(int)));
+  CHECK_HIP(hipMalloc((void **)&counter_d, sizeof(unsigned int) * 2));
+  CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
+  CHECK_HIP(hipDeviceSynchronize());
   int mypeer = atoi(argv[1]);
   if (atoi(argv[2]) > 0) max_blocks = atoi(argv[2]);
   if (atoi(argv[3]) > 0) max_threads = atoi(argv[3]);
@@ -147,22 +157,22 @@ int main(int argc, char *argv[]) {
       for (int size = 8; size <= MAX_MSG_SIZE; size *= 2) {
         // printf("mysize=%d\n",size);
         // fflush(stdout);
-        hipMemset(counter_d, 0, sizeof(unsigned int) * 2);
+        CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
         bw<<<max_blocks, max_threads>>>(
             data_d, flag_d, counter_d, size / sizeof(double), mype, skip, peer);
-        hipGetLastError();
-        hipDeviceSynchronize();
-        hipMemset(counter_d, 0, sizeof(unsigned int) * 2);
+        CHECK_HIP(hipGetLastError());
+        CHECK_HIP(hipDeviceSynchronize());
+        CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
 
-        hipEventRecord(start);
+        CHECK_HIP(hipEventRecord(start));
         bw<<<max_blocks, max_threads>>>(
             data_d, flag_d, counter_d, size / sizeof(double), mype, iter, peer);
-        hipEventRecord(stop);
+        CHECK_HIP(hipEventRecord(stop));
 
-        hipGetLastError();
-        hipEventSynchronize(stop);
+        CHECK_HIP(hipGetLastError());
+        CHECK_HIP(hipEventSynchronize(stop));
 
-        hipEventElapsedTime(&milliseconds, start, stop);
+        CHECK_HIP(hipEventElapsedTime(&milliseconds, start, stop));
         printf("peer,%d,size,%d,iter, %d, bw,%f\n", peer, size, iter,
                size / (milliseconds * (B_TO_GB / (iter * MS_TO_S))));
         // roc_shmem_barrier_all();
@@ -178,6 +188,9 @@ finalize:
 
   if (data_d) {
     roc_shmem_free(data_d);
+  }
+  if (counter_d) {
+    CHECK_HIP(hipFree(counter_d));
   }
   roc_shmem_finalize();
   //    MPI_Finalize();
