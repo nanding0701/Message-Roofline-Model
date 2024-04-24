@@ -26,7 +26,7 @@ cmake_minimum_required(VERSION 3.16.3 FATAL_ERROR)
 # GLOBAL COMPILE FLAGS
 ###############################################################################
 if (NOT DEFINED CMAKE_CXX_COMPILER)
-    set(CMAKE_CXX_COMPILER /opt/rocm/bin/hipcc)
+    set(CMAKE_CXX_COMPILER hipcc)
 endif()
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD 20)

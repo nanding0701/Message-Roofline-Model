@@ -125,7 +125,9 @@ endif()
 ##########################################################################################
 #       Setup CUDA and MPI for aliases
 ##########################################################################################
-find_package(CUDAToolkit REQUIRED)
+if (USE_NVSHMEM)
+    find_package(CUDAToolkit REQUIRED)
+endif()
 find_package(MPI REQUIRED)
 
 if(NOT DEFINED CUDA_ARCHITECTURES)
