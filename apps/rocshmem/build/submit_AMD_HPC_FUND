@@ -1,20 +1,20 @@
 #!/bin/bash
-##SBATCH -J test               # Job name
-##SBATCH -o job.%j.out         # Name of stdout output file (%j expands to jobId)
-##SBATCH -N 1                  # Total number of nodes requested
-##SBATCH -n 8                # Total number of mpi tasks requested
-##SBATCH -t 02:00:00           # Run time (hh:mm:ss) - 1.5 hours
-##SBATCH -p mi1008x            # Desired partition
-#
-#
-##peer, blocks, threads, iter
-#module use /share/bpotter/modulefiles/
-#module load rocshmem/1.6.3
-#module list
+#SBATCH -J test               # Job name
+#SBATCH -o job.%j.out         # Name of stdout output file (%j expands to jobId)
+#SBATCH -N 1                  # Total number of nodes requested
+#SBATCH -n 8                # Total number of mpi tasks requested
+#SBATCH -t 02:00:00           # Run time (hh:mm:ss) - 1.5 hours
+#SBATCH -p mi1008x            # Desired partition
 
-blocks=(1)
-threads=(256)
-iters=(1 2 4 8 10)
+
+#peer, blocks, threads, iter
+module use /share/bpotter/modulefiles/
+module load rocshmem/1.6.3
+module list
+
+blocks=(1 4 8)
+threads=(256 512 1024)
+iters=(1 2 4 8 10 100 1000)
 
 for myblock in ${blocks[@]}
 do 
@@ -23,9 +23,9 @@ do
 		for myiter in ${iters[@]}
 		do
 			echo $myblock, $mythread, $myiter
-			srun -N1 -n8 -c4 ./shmem_putfence_bw_loopallgpu 1 ${myblock} ${mythread} ${myiter} |& tee log_putfence_B${myblock}_T${mythread}_I${myiter}
+			#srun -N1 -n8 -c4 ./shmem_putfence_bw_loopallgpu 1 ${myblock} ${mythread} ${myiter} |& tee log_putfence_B${myblock}_T${mythread}_I${myiter}
 			srun -N1 -n8 -c4 ./shmem_putfencesig_bw_loopallgpu 1 ${myblock} ${mythread} ${myiter} |& tee log_putfencesig_B${myblock}_T${mythread}_I${myiter}
-			srun -N1 -n8 -c4 ./shmem_put_bw_loopallgpu 1 ${myblock} ${mythread} ${myiter} |& tee log_put_B${myblock}_T${mythread}_I${myiter} 
+			#srun -N1 -n8 -c4 ./shmem_put_bw_loopallgpu 1 ${myblock} ${mythread} ${myiter} |& tee log_put_B${myblock}_T${mythread}_I${myiter} 
 		done
 	done
 done

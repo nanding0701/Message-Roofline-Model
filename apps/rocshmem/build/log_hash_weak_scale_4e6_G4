@@ -1,0 +1,5 @@
+!!!!! roc_shmem 0/4, ndevices=8,cur=0, node=t007-009.hpcfund, LV=4000000
+!!!!! roc_shmem 2/4, ndevices=8,cur=2, node=t007-009.hpcfund, LV=4000000
+!!!!! roc_shmem 3/4, ndevices=8,cur=3, node=t007-009.hpcfund, LV=4000000
+!!!!! roc_shmem 1/4, ndevices=8,cur=1, node=t007-009.hpcfund, LV=4000000
+4	0.000430
