@@ -1,0 +1,7 @@
+/work1/lbl/nanding/msg_roofline/apps/rocshmem/build/CMakeFiles/hashtable_rocshmem.dir
+/work1/lbl/nanding/msg_roofline/apps/rocshmem/build/CMakeFiles/jacobi_rocshmem.dir
+/work1/lbl/nanding/msg_roofline/apps/rocshmem/build/CMakeFiles/shmem_put_bw_loopallgpu.dir
+/work1/lbl/nanding/msg_roofline/apps/rocshmem/build/CMakeFiles/shmem_putfence_bw_loopallgpu.dir
+/work1/lbl/nanding/msg_roofline/apps/rocshmem/build/CMakeFiles/shmem_putfencesig_bw_loopallgpu.dir
+/work1/lbl/nanding/msg_roofline/apps/rocshmem/build/CMakeFiles/edit_cache.dir
+/work1/lbl/nanding/msg_roofline/apps/rocshmem/build/CMakeFiles/rebuild_cache.dir

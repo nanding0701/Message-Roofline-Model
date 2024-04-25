@@ -1,0 +1,164 @@
+Rank 0, ROC_SHMEM 
+Rank 2, ROC_SHMEM 
+Rank 5, ROC_SHMEM 
+Rank 1, ROC_SHMEM 
+Rank 6, ROC_SHMEM 
+Rank 7, ROC_SHMEM 
+Rank 3, ROC_SHMEM 
+Rank 4, ROC_SHMEM 
+IN USE - mpi 0/8, roc_shmem 0/8 , ndevices=8,cur=0, GPU_ID=N/A,node=t007-010.hpcfund
+max_blocks=1, max_threads=512, iter=8
+IN USE - mpi 1/8, roc_shmem 1/8 , ndevices=8,cur=1, GPU_ID=N/A,node=t007-010.hpcfund
+IN USE - mpi 2/8, roc_shmem 2/8 , ndevices=8,cur=2, GPU_ID=N/A,node=t007-010.hpcfund
+IN USE - mpi 3/8, roc_shmem 3/8 , ndevices=8,cur=3, GPU_ID=N/A,node=t007-010.hpcfund
+IN USE - mpi 4/8, roc_shmem 4/8 , ndevices=8,cur=4, GPU_ID=N/A,node=t007-010.hpcfund
+IN USE - mpi 5/8, roc_shmem 5/8 , ndevices=8,cur=5, GPU_ID=N/A,node=t007-010.hpcfund
+IN USE - mpi 6/8, roc_shmem 6/8 , ndevices=8,cur=6, GPU_ID=N/A,node=t007-010.hpcfund
+IN USE - mpi 7/8, roc_shmem 7/8 , ndevices=8,cur=7, GPU_ID=N/A,node=t007-010.hpcfund
+peer,1,size,32, iter, 8, time, 0.194880, bw, 0.001223
+peer,1,size,64, iter, 8, time, 0.194560, bw, 0.002451
+peer,1,size,128, iter, 8, time, 0.182560, bw, 0.005224
+peer,1,size,256, iter, 8, time, 0.193760, bw, 0.009844
+peer,1,size,512, iter, 8, time, 0.187040, bw, 0.020395
+peer,1,size,1024, iter, 8, time, 0.185121, bw, 0.041213
+peer,1,size,2048, iter, 8, time, 0.192960, bw, 0.079078
+peer,1,size,4096, iter, 8, time, 0.197600, bw, 0.154442
+peer,1,size,8192, iter, 8, time, 0.189600, bw, 0.321917
+peer,1,size,16384, iter, 8, time, 0.216480, bw, 0.563890
+peer,1,size,32768, iter, 8, time, 0.229121, bw, 1.065559
+peer,1,size,65536, iter, 8, time, 0.269760, bw, 1.810068
+peer,1,size,131072, iter, 8, time, 0.351040, bw, 2.781927
+peer,1,size,262144, iter, 8, time, 0.503360, bw, 3.880196
+peer,1,size,524288, iter, 8, time, 0.812641, bw, 4.806884
+peer,1,size,1048576, iter, 8, time, 1.437441, bw, 5.435035
+peer,1,size,2097152, iter, 8, time, 2.671041, bw, 5.849811
+peer,1,size,4194304, iter, 8, time, 5.178883, bw, 6.034153
+peer,1,size,8388608, iter, 8, time, 10.591528, bw, 5.900975
+peer,1,size,16777216, iter, 8, time, 22.004335, bw, 5.680729
+peer,1,size,33554432, iter, 8, time, 43.401806, bw, 5.760160
+peer,2,size,32, iter, 8, time, 0.185441, bw, 0.001286
+peer,2,size,64, iter, 8, time, 0.186720, bw, 0.002554
+peer,2,size,128, iter, 8, time, 0.179200, bw, 0.005322
+peer,2,size,256, iter, 8, time, 0.185760, bw, 0.010268
+peer,2,size,512, iter, 8, time, 0.190400, bw, 0.020035
+peer,2,size,1024, iter, 8, time, 0.186721, bw, 0.040860
+peer,2,size,2048, iter, 8, time, 0.188480, bw, 0.080958
+peer,2,size,4096, iter, 8, time, 0.188320, bw, 0.162053
+peer,2,size,8192, iter, 8, time, 0.202881, bw, 0.300844
+peer,2,size,16384, iter, 8, time, 0.213920, bw, 0.570638
+peer,2,size,32768, iter, 8, time, 0.229440, bw, 1.064077
+peer,2,size,65536, iter, 8, time, 0.261600, bw, 1.866529
+peer,2,size,131072, iter, 8, time, 0.349760, bw, 2.792108
+peer,2,size,262144, iter, 8, time, 0.489921, bw, 3.986634
+peer,2,size,524288, iter, 8, time, 0.812961, bw, 4.804992
+peer,2,size,1048576, iter, 8, time, 1.392801, bw, 5.609231
+peer,2,size,2097152, iter, 8, time, 2.641122, bw, 5.916078
+peer,2,size,4194304, iter, 8, time, 4.970245, bw, 6.287450
+peer,2,size,8388608, iter, 8, time, 10.543691, bw, 5.927748
+peer,2,size,16777216, iter, 8, time, 21.920343, bw, 5.702497
+peer,2,size,33554432, iter, 8, time, 43.321007, bw, 5.770904
+peer,3,size,32, iter, 8, time, 0.193120, bw, 0.001235
+peer,3,size,64, iter, 8, time, 0.190401, bw, 0.002504
+peer,3,size,128, iter, 8, time, 0.189440, bw, 0.005034
+peer,3,size,256, iter, 8, time, 0.192960, bw, 0.009885
+peer,3,size,512, iter, 8, time, 0.194080, bw, 0.019655
+peer,3,size,1024, iter, 8, time, 0.188321, bw, 0.040513
+peer,3,size,2048, iter, 8, time, 0.167200, bw, 0.091261
+peer,3,size,4096, iter, 8, time, 0.188320, bw, 0.162053
+peer,3,size,8192, iter, 8, time, 0.198721, bw, 0.307142
+peer,3,size,16384, iter, 8, time, 0.207840, bw, 0.587331
+peer,3,size,32768, iter, 8, time, 0.227040, bw, 1.075326
+peer,3,size,65536, iter, 8, time, 0.267520, bw, 1.825224
+peer,3,size,131072, iter, 8, time, 0.348801, bw, 2.799785
+peer,3,size,262144, iter, 8, time, 0.485440, bw, 4.023434
+peer,3,size,524288, iter, 8, time, 0.800801, bw, 4.877955
+peer,3,size,1048576, iter, 8, time, 1.383042, bw, 5.648810
+peer,3,size,2097152, iter, 8, time, 2.612322, bw, 5.981301
+peer,3,size,4194304, iter, 8, time, 4.940965, bw, 6.324710
+peer,3,size,8388608, iter, 8, time, 10.428011, bw, 5.993505
+peer,3,size,16777216, iter, 8, time, 21.949305, bw, 5.694972
+peer,3,size,33554432, iter, 8, time, 42.998768, bw, 5.814152
+peer,4,size,32, iter, 8, time, 0.188480, bw, 0.001265
+peer,4,size,64, iter, 8, time, 0.187040, bw, 0.002549
+peer,4,size,128, iter, 8, time, 0.190720, bw, 0.005000
+peer,4,size,256, iter, 8, time, 0.189121, bw, 0.010085
+peer,4,size,512, iter, 8, time, 0.189280, bw, 0.020154
+peer,4,size,1024, iter, 8, time, 0.165760, bw, 0.046027
+peer,4,size,2048, iter, 8, time, 0.178561, bw, 0.085455
+peer,4,size,4096, iter, 8, time, 0.199200, bw, 0.153202
+peer,4,size,8192, iter, 8, time, 0.200320, bw, 0.304690
+peer,4,size,16384, iter, 8, time, 0.207680, bw, 0.587784
+peer,4,size,32768, iter, 8, time, 0.234721, bw, 1.040137
+peer,4,size,65536, iter, 8, time, 0.271521, bw, 1.798328
+peer,4,size,131072, iter, 8, time, 0.355840, bw, 2.744401
+peer,4,size,262144, iter, 8, time, 0.514880, bw, 3.793380
+peer,4,size,524288, iter, 8, time, 0.842881, bw, 4.634428
+peer,4,size,1048576, iter, 8, time, 1.466082, bw, 5.328858
+peer,4,size,2097152, iter, 8, time, 2.762563, bw, 5.656011
+peer,4,size,4194304, iter, 8, time, 5.317765, bw, 5.876561
+peer,4,size,8388608, iter, 8, time, 10.484812, bw, 5.961036
+peer,4,size,16777216, iter, 8, time, 22.341948, bw, 5.594887
+peer,4,size,33554432, iter, 8, time, 43.484070, bw, 5.749263
+peer,5,size,32, iter, 8, time, 0.188800, bw, 0.001263
+peer,5,size,64, iter, 8, time, 0.193120, bw, 0.002469
+peer,5,size,128, iter, 8, time, 0.193280, bw, 0.004934
+peer,5,size,256, iter, 8, time, 0.191200, bw, 0.009976
+peer,5,size,512, iter, 8, time, 0.194880, bw, 0.019575
+peer,5,size,1024, iter, 8, time, 0.189280, bw, 0.040308
+peer,5,size,2048, iter, 8, time, 0.178720, bw, 0.085379
+peer,5,size,4096, iter, 8, time, 0.187840, bw, 0.162467
+peer,5,size,8192, iter, 8, time, 0.193440, bw, 0.315527
+peer,5,size,16384, iter, 8, time, 0.207680, bw, 0.587784
+peer,5,size,32768, iter, 8, time, 0.228800, bw, 1.067054
+peer,5,size,65536, iter, 8, time, 0.275201, bw, 1.774281
+peer,5,size,131072, iter, 8, time, 0.351681, bw, 2.776857
+peer,5,size,262144, iter, 8, time, 0.515841, bw, 3.786313
+peer,5,size,524288, iter, 8, time, 0.830882, bw, 4.701355
+peer,5,size,1048576, iter, 8, time, 1.468323, bw, 5.320724
+peer,5,size,2097152, iter, 8, time, 2.732003, bw, 5.719278
+peer,5,size,4194304, iter, 8, time, 5.307846, bw, 5.887542
+peer,5,size,8388608, iter, 8, time, 10.653933, bw, 5.866410
+peer,5,size,16777216, iter, 8, time, 22.353151, bw, 5.592083
+peer,5,size,33554432, iter, 8, time, 43.629974, bw, 5.730037
+peer,6,size,32, iter, 8, time, 0.194720, bw, 0.001224
+peer,6,size,64, iter, 8, time, 0.190560, bw, 0.002502
+peer,6,size,128, iter, 8, time, 0.194561, bw, 0.004902
+peer,6,size,256, iter, 8, time, 0.193281, bw, 0.009868
+peer,6,size,512, iter, 8, time, 0.196960, bw, 0.019368
+peer,6,size,1024, iter, 8, time, 0.190240, bw, 0.040104
+peer,6,size,2048, iter, 8, time, 0.178080, bw, 0.085685
+peer,6,size,4096, iter, 8, time, 0.194400, bw, 0.156984
+peer,6,size,8192, iter, 8, time, 0.199521, bw, 0.305910
+peer,6,size,16384, iter, 8, time, 0.209921, bw, 0.581509
+peer,6,size,32768, iter, 8, time, 0.231201, bw, 1.055973
+peer,6,size,65536, iter, 8, time, 0.274400, bw, 1.779460
+peer,6,size,131072, iter, 8, time, 0.350401, bw, 2.787000
+peer,6,size,262144, iter, 8, time, 0.517601, bw, 3.773439
+peer,6,size,524288, iter, 8, time, 0.828801, bw, 4.713160
+peer,6,size,1048576, iter, 8, time, 1.491201, bw, 5.239094
+peer,6,size,2097152, iter, 8, time, 2.718403, bw, 5.747891
+peer,6,size,4194304, iter, 8, time, 5.173606, bw, 6.040307
+peer,6,size,8388608, iter, 8, time, 10.620492, bw, 5.884881
+peer,6,size,16777216, iter, 8, time, 23.294428, bw, 5.366119
+peer,6,size,33554432, iter, 8, time, 43.596375, bw, 5.734453
+peer,7,size,32, iter, 8, time, 0.184800, bw, 0.001290
+peer,7,size,64, iter, 8, time, 0.189920, bw, 0.002511
+peer,7,size,128, iter, 8, time, 0.179680, bw, 0.005308
+peer,7,size,256, iter, 8, time, 0.193760, bw, 0.009844
+peer,7,size,512, iter, 8, time, 0.184801, bw, 0.020642
+peer,7,size,1024, iter, 8, time, 0.190720, bw, 0.040003
+peer,7,size,2048, iter, 8, time, 0.192000, bw, 0.079473
+peer,7,size,4096, iter, 8, time, 0.185760, bw, 0.164286
+peer,7,size,8192, iter, 8, time, 0.202880, bw, 0.300845
+peer,7,size,16384, iter, 8, time, 0.207840, bw, 0.587331
+peer,7,size,32768, iter, 8, time, 0.234400, bw, 1.041561
+peer,7,size,65536, iter, 8, time, 0.276640, bw, 1.765052
+peer,7,size,131072, iter, 8, time, 0.356321, bw, 2.740697
+peer,7,size,262144, iter, 8, time, 0.516321, bw, 3.782793
+peer,7,size,524288, iter, 8, time, 0.837442, bw, 4.664527
+peer,7,size,1048576, iter, 8, time, 1.474401, bw, 5.298791
+peer,7,size,2097152, iter, 8, time, 2.774403, bw, 5.631873
+peer,7,size,4194304, iter, 8, time, 5.320327, bw, 5.873731
+peer,7,size,8388608, iter, 8, time, 10.707852, bw, 5.836870
+peer,7,size,16777216, iter, 8, time, 22.389147, bw, 5.583093
+peer,7,size,33554432, iter, 8, time, 43.812218, bw, 5.706202

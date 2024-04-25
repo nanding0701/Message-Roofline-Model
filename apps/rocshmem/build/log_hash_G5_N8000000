@@ -1,0 +1,76 @@
+!!!!! roc_shmem 0/5, ndevices=8,cur=0, node=t007-010.hpcfund, LV=8000000
+!!!!! roc_shmem 2/5, ndevices=8,cur=2, node=t007-010.hpcfund, LV=8000000
+!!!!! roc_shmem 1/5, ndevices=8,cur=1, node=t007-010.hpcfund, LV=8000000
+!!!!! roc_shmem 3/5, ndevices=8,cur=3, node=t007-010.hpcfund, LV=8000000
+!!!!! roc_shmem 4/5, ndevices=8,cur=4, node=t007-010.hpcfund, LV=8000000
+Memory access fault by GPU node-2 (Agent handle: 0x17790a0) on address (nil). Reason: Page not present or supervisor privilege.
+Memory access fault by GPU node-4 (Agent handle: 0x247e630) on address (nil). Reason: Page not present or supervisor privilege.
+[t007-010:3593896] *** Process received signal ***
+[t007-010:3593896] Signal: Aborted (6)
+[t007-010:3593896] Signal code:  (-6)
+[t007-010:3593894] *** Process received signal ***
+[t007-010:3593894] Signal: Aborted (6)
+[t007-010:3593894] Signal code:  (-6)
+Memory access fault by GPU node-3 (Agent handle: 0x1072be0) on address (nil). Reason: Page not present or supervisor privilege.
+[t007-010:3593895] *** Process received signal ***
+[t007-010:3593895] Signal: Aborted (6)
+[t007-010:3593895] Signal code:  (-6)
+Memory access fault by GPU node-5 (Agent handle: 0x994ec0) on address (nil). Reason: Page not present or supervisor privilege.
+[t007-010:3593897] *** Process received signal ***
+[t007-010:3593897] Signal: Aborted (6)
+[t007-010:3593897] Signal code:  (-6)
+Memory access fault by GPU node-6 (Agent handle: 0x14a3700) on address (nil). Reason: Page not present or supervisor privilege.
+[t007-010:3593898] *** Process received signal ***
+[t007-010:3593898] Signal: Aborted (6)
+[t007-010:3593898] Signal code:  (-6)
+[t007-010:3593895] [ 0] /lib64/libc.so.6(+0x54d90)[0x7f80f1157d90]
+[t007-010:3593897] [ 0] /lib64/libc.so.6(+0x54d90)[0x7f695b8ced90]
+[t007-010:3593898] [ 0] /lib64/libc.so.6(+0x54d90)[0x7fe21111ed90]
+[t007-010:3593894] [ 0] /lib64/libc.so.6(+0x54d90)[0x7f10851b1d90]
+[t007-010:3593895] [ 1] /lib64/libc.so.6(+0xa154c)[0x7f80f11a454c]
+[t007-010:3593896] [ 0] /lib64/libc.so.6(+0x54d90)[0x7fdf81998d90]
+[t007-010:3593897] [ 1] /lib64/libc.so.6(+0xa154c)[0x7f695b91b54c]
+[t007-010:3593894] [ 1] /lib64/libc.so.6(+0xa154c)[0x7f10851fe54c]
+[t007-010:3593895] [ 2] /lib64/libc.so.6(raise+0x16)[0x7f80f1157ce6]
+[t007-010:3593895] [ 3] /lib64/libc.so.6(abort+0xd3)[0x7f80f112b7f3]
+[t007-010:3593895] [ 4] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x2297f)[0x7f80f185497f]
+[t007-010:3593897] [ 2] /lib64/libc.so.6(raise+0x16)[0x7f695b8cece6]
+[t007-010:3593897] [ 3] /lib64/libc.so.6(abort+0xd3)[0x7f695b8a27f3]
+[t007-010:3593897] [ 4] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x2297f)[0x7f695bfcb97f]
+[t007-010:3593897] [ 5] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x6ef7c)[0x7f695c017f7c]
+[t007-010:3593898] [ 1] /lib64/libc.so.6(+0xa154c)[0x7fe21116b54c]
+[t007-010:3593898] [ 2] /lib64/libc.so.6(raise+0x16)[0x7fe21111ece6]
+[t007-010:3593894] [ 2] /lib64/libc.so.6(raise+0x16)[0x7f10851b1ce6]
+[t007-010:3593895] [ 5] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x6ef7c)[0x7f80f18a0f7c]
+[t007-010:3593895] [ 6] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x26617)[0x7f80f1858617]
+[t007-010:3593896] [ 1] /lib64/libc.so.6(+0xa154c)[0x7fdf819e554c]
+[t007-010:3593896] [ 2] /lib64/libc.so.6(raise+0x16)[0x7fdf81998ce6]
+[t007-010:3593897] [ 6] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x26617)[0x7f695bfcf617]
+[t007-010:3593897] [ 7] /lib64/libc.so.6(+0x9f802)[0x7f695b919802]
+[t007-010:3593898] [ 3] /lib64/libc.so.6(abort+0xd3)[0x7fe2110f27f3]
+[t007-010:3593898] [ 4] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x2297f)[0x7fe21181b97f]
+[t007-010:3593898] [ 5] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x6ef7c)[0x7fe211867f7c]
+[t007-010:3593898] [ 6] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x26617)[0x7fe21181f617]
+[t007-010:3593894] [ 3] /lib64/libc.so.6(abort+0xd3)[0x7f10851857f3]
+[t007-010:3593894] [ 4] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x2297f)[0x7f10858ae97f]
+[t007-010:3593894] [ 5] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x6ef7c)[0x7f10858faf7c]
+[t007-010:3593894] [ 6] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x26617)[0x7f10858b2617]
+[t007-010:3593895] [ 7] /lib64/libc.so.6(+0x9f802)[0x7f80f11a2802]
+[t007-010:3593895] [ 8] /lib64/libc.so.6(+0x3f450)[0x7f80f1142450]
+[t007-010:3593895] *** End of error message ***
+[t007-010:3593897] [ 8] /lib64/libc.so.6(+0x3f450)[0x7f695b8b9450]
+[t007-010:3593897] *** End of error message ***
+[t007-010:3593894] [ 7] /lib64/libc.so.6(+0x9f802)[0x7f10851fc802]
+[t007-010:3593896] [ 3] /lib64/libc.so.6(abort+0xd3)[0x7fdf8196c7f3]
+[t007-010:3593896] [ 4] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x2297f)[0x7fdf8209597f]
+[t007-010:3593896] [ 5] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x6ef7c)[0x7fdf820e1f7c]
+[t007-010:3593896] [ 6] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x26617)[0x7fdf82099617]
+[t007-010:3593898] [ 7] /lib64/libc.so.6(+0x9f802)[0x7fe211169802]
+[t007-010:3593898] [ 8] /lib64/libc.so.6(+0x3f450)[0x7fe211109450]
+[t007-010:3593898] *** End of error message ***
+[t007-010:3593894] [ 8] /lib64/libc.so.6(+0x3f450)[0x7f108519c450]
+[t007-010:3593894] *** End of error message ***
+[t007-010:3593896] [ 7] /lib64/libc.so.6(+0x9f802)[0x7fdf819e3802]
+[t007-010:3593896] [ 8] /lib64/libc.so.6(+0x3f450)[0x7fdf81983450]
+[t007-010:3593896] *** End of error message ***
+srun: error: t007-010: tasks 0-4: Aborted (core dumped)

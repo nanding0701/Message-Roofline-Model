@@ -1,0 +1,4 @@
+!!!!! roc_shmem 0/3, ndevices=8,cur=0, node=t007-010.hpcfund, LV=1333333
+!!!!! roc_shmem 2/3, ndevices=8,cur=2, node=t007-010.hpcfund, LV=1333333
+!!!!! roc_shmem 1/3, ndevices=8,cur=1, node=t007-010.hpcfund, LV=1333333
+3	0.000604

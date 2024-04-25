@@ -1,0 +1,16 @@
+!!!!! roc_shmem 0/1, ndevices=8,cur=0, node=t007-010.hpcfund, LV=40000000
+Memory access fault by GPU node-2 (Agent handle: 0xdbc090) on address (nil). Reason: Page not present or supervisor privilege.
+[t007-010:3593378] *** Process received signal ***
+[t007-010:3593378] Signal: Aborted (6)
+[t007-010:3593378] Signal code:  (-6)
+[t007-010:3593378] [ 0] /lib64/libc.so.6(+0x54d90)[0x7fb845e1dd90]
+[t007-010:3593378] [ 1] /lib64/libc.so.6(+0xa154c)[0x7fb845e6a54c]
+[t007-010:3593378] [ 2] /lib64/libc.so.6(raise+0x16)[0x7fb845e1dce6]
+[t007-010:3593378] [ 3] /lib64/libc.so.6(abort+0xd3)[0x7fb845df17f3]
+[t007-010:3593378] [ 4] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x2297f)[0x7fb84651a97f]
+[t007-010:3593378] [ 5] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x6ef7c)[0x7fb846566f7c]
+[t007-010:3593378] [ 6] /opt/rocm-6.0.2/lib/libhsa-runtime64.so.1(+0x26617)[0x7fb84651e617]
+[t007-010:3593378] [ 7] /lib64/libc.so.6(+0x9f802)[0x7fb845e68802]
+[t007-010:3593378] [ 8] /lib64/libc.so.6(+0x3f450)[0x7fb845e08450]
+[t007-010:3593378] *** End of error message ***
+srun: error: t007-010: task 0: Aborted (core dumped)
