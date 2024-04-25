@@ -8,6 +8,17 @@
 __device__ int clockrate;
 
 
+#define CHECK_HIP(cmd)                                                        \
+  {                                                                           \
+    hipError_t error = cmd;                                                   \
+    if (error != hipSuccess) {                                                \
+      fprintf(stderr, "error: '%s'(%d) at %s:%d\n", hipGetErrorString(error), \
+              error, __FILE__, __LINE__);                                     \
+      exit(EXIT_FAILURE);                                                     \
+    }                                                                         \
+  }
+
+
 int64_t TSIZE;
 
 int insert_collisions = 0;
@@ -244,16 +255,18 @@ __global__ void init_buffer(int64_t* hash_d_table,int64_t* hash_d_last,int* hash
 }
 int main(int c, char *v[]) {
     int rank, nranks;
-    int mype, npes, mype_node, ndevices;
+    int mype, npes, mype_node;
 
     MPI_CHECK(MPI_Init(&c, &v));
     MPI_CHECK(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
     MPI_CHECK(MPI_Comm_size(MPI_COMM_WORLD, &nranks));
 
+    // Set the device before calling `roc_shmem_init`
+    int ndevices, get_cur_dev;
+    CHECK_HIP(hipGetDeviceCount(&ndevices));
+    CHECK_HIP(hipSetDevice(rank % ndevices));
+    CHECK_HIP(hipGetDevice(&get_cur_dev));
 
-    auto mpi_comm = MPI_COMM_WORLD;
-    //attr.mpi_comm = &mpi_comm;
-    //nvshmemx_init_attr(NVSHMEMX_INIT_WITH_MPI_COMM, &attr);
     roc_shmem_init();
     mype = roc_shmem_my_pe();
     npes = roc_shmem_n_pes();
@@ -261,18 +274,6 @@ int main(int c, char *v[]) {
     char name[MPI_MAX_PROCESSOR_NAME]; // = "ROC_SHMEM HashTable";
     int resultlength;
     MPI_Get_processor_name(name, &resultlength);
-
-    // application picks the device each PE will use
-    auto status = hipGetDeviceCount(&ndevices);
-    status = hipSetDevice(mype%ndevices);
-
-    int get_cur_dev;
-    status = hipGetDevice(&get_cur_dev);
-
-    //cudaDeviceProp prop;
-    //cudaGetDeviceProperties(&prop,0));
-    //cudaMemcpyToSymbol(clockrate, (void *) &prop.clockRate, sizeof(int), 0,
-    //                              cudaMemcpyHostToDevice));
 
     int LV = atoi(v[1]);
     printf("!!!!! roc_shmem %d/%d, ndevices=%d,cur=%d, node=%s, LV=%d\n", mype, npes, ndevices, get_cur_dev, name, LV);
@@ -296,10 +297,10 @@ int main(int c, char *v[]) {
     //fflush(stdout);
 
     //MPI_Barrier(MPI_COMM_WORLD);
-    status = hipDeviceSynchronize();
+    CHECK_HIP(hipDeviceSynchronize());
     init_buffer<<<1,32>>>(hash_d_table,hash_d_last,hash_d_nextfree,hash_tsize,hash_size);
-    status = hipGetLastError();
-    status = hipDeviceSynchronize();
+    CHECK_HIP(hipGetLastError());
+    CHECK_HIP(hipDeviceSynchronize());
     //MPI_Barrier(MPI_COMM_WORLD);
     //printf("%d,done init=%d,%d\n",rank,hash_tsize,hash_size);
     //fflush(stdout);
@@ -316,28 +317,28 @@ int main(int c, char *v[]) {
     for (int i=0;i<nr_of_ins;i++){
         val[i]=bigRandVal();
     }
-    status = hipMalloc((void**)&d_val, sizeof(int64_t)*(nr_of_ins));
-    status = hipMemcpy(d_val,  val, sizeof(int64_t)*(nr_of_ins), hipMemcpyHostToDevice);
+    CHECK_HIP(hipMalloc((void**)&d_val, sizeof(int64_t)*(nr_of_ins)));
+    CHECK_HIP(hipMemcpy(d_val,  val, sizeof(int64_t)*(nr_of_ins), hipMemcpyHostToDevice));
 
     //MPI_Barrier(MPI_COMM_WORLD);
-    status = hipDeviceSynchronize();
+    CHECK_HIP(hipDeviceSynchronize());
     //put everything on GPU
     insert<<<1,512,0,0>>>(mype,warmups,hash_d_table,hash_d_last,hash_d_nextfree, hash_tsize, hash_size,d_val);
-    status = hipGetLastError();
-    status = hipDeviceSynchronize();
+    CHECK_HIP(hipGetLastError());
+    CHECK_HIP(hipDeviceSynchronize());
 
     //MPI_Barrier(MPI_COMM_WORLD);
     t_start = MPI_Wtime();
     insert<<<1,1024,0,0>>>(mype,nr_of_ins,hash_d_table,hash_d_last,hash_d_nextfree, hash_tsize, hash_size,d_val);
-    status = hipGetLastError();
-    status = hipDeviceSynchronize();
+    CHECK_HIP(hipGetLastError());
+    CHECK_HIP(hipDeviceSynchronize());
     //MPI_Barrier(MPI_COMM_WORLD);
     t_end = MPI_Wtime();
     ins_time = t_end - t_start;
 
     check_val<<<1,1>>>(mype,nr_of_ins,hash_d_table,hash_d_last,hash_d_nextfree, hash_tsize, hash_size,d_val);
-    status = hipGetLastError();
-    status = hipDeviceSynchronize();
+    CHECK_HIP(hipGetLastError());
+    CHECK_HIP(hipDeviceSynchronize());
 
 
     if(mype == 0) {
