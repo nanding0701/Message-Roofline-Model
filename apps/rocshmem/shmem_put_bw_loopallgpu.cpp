@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nranks);
-  printf("Rank %d, MPI \n", rank);
+  //printf("Rank %d, MPI \n", rank);
 
   // Set the device before calling `roc_shmem_init`
   int ndevices, get_cur_dev;

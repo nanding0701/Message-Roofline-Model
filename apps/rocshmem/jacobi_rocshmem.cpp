@@ -378,7 +378,7 @@ int main(int argc, char* argv[]) {
 
         /* Instead of using nvshmemx_barrier_all_on_stream, we are using a custom implementation
            of barrier that just synchronizes with the neighbor PEs that is the PEs with whom a PE
-           communicates. This will perform faster than a global barrier that would do redundant
+           communicates. This will perform faster than a global barrier that would do redundant-nccheck
            synchronization for this application. */
         syncneighborhood_kernel<<<1, 1, 0, compute_stream>>>(mype, npes, sync_arr, synccounter);
         synccounter++;
@@ -447,7 +447,7 @@ int main(int argc, char* argv[]) {
 
     if (!mype && result_correct) {
         if (csv) {
-            printf("nvshmem_opt, %d, %d, %d, %d, %d, 1, %f, %f\n", nx, ny, iter_max, nccheck, npes,
+            printf("rocshmem_opt, %d, %d, %d, %d, %d, 1, %f, %f\n", nx, ny, iter_max, nccheck, npes,
                    (stop - start), runtime_serial);
         } else {
             printf("Num GPUs: %d.\n", npes);

@@ -23,22 +23,31 @@ using namespace rocshmem;
 
 using namespace std;
 
+#define CHECK_HIP(cmd)                                                        \
+  {                                                                           \
+    hipError_t error = cmd;                                                   \
+    if (error != hipSuccess) {                                                \
+      fprintf(stderr, "error: '%s'(%d) at %s:%d\n", hipGetErrorString(error), \
+              error, __FILE__, __LINE__);                                     \
+      exit(EXIT_FAILURE);                                                     \
+    }                                                                         \
+  }
+
 __global__ void bw(double *data_d, int* flag_d, volatile unsigned int *counter_d, int len, int pe, int iter, int peer) {
     int i;
     unsigned int counter;
-    int tid = hipThreadIdx_x;
-    int bid = hipBlockIdx_x;
-    int nblocks = hipGridDim_x;
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int nblocks = gridDim.x;
     int sig = 1;
+    
     roc_shmem_wg_init();
-    //if (tid==0 && bid==0) printf("GPU: pe=%d, peer=%d, size=%d\n",pe, peer, len);
     for (i = 0; i < iter; i++) {
-    	//if (tid==0 && bid==0) printf("%d, peer=%d, size=%d, iter=%d\n",pe, peer, len,i);
-        roc_shmemx_double_put_nbi_wg(&data_d[0], &data_d[0], len/nblocks ,peer);
-        roc_shmem_fence();
-        //if (tid == 0) {
-        //  roc_shmem_int_p(&flag_d[i], sig, peer);
-        //}
+        roc_shmemx_double_put_nbi_wg(data_d + (bid * (len / nblocks)),
+                                     data_d + (bid * (len / nblocks)),
+                                     len / nblocks, peer);
+        if (tid==0) roc_shmem_fence();
+        
         // synchronizing across blocks
         __syncthreads();
         if (!tid) {
@@ -85,15 +94,19 @@ int main(int argc, char *argv[]) {
     float milliseconds;
     hipEvent_t start, stop;
 
-//    int rank,nranks;
-//    MPI_Init(&argc, &argv);
-//    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-//    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
-//    printf("Rank %d, MPI \n",rank);
-//    fflush(stdout);
+    int rank,nranks;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+  
+    // Set the device before calling `roc_shmem_init`
+    int ndevices, get_cur_dev;
+    CHECK_HIP(hipGetDeviceCount(&ndevices));
+    CHECK_HIP(hipSetDevice(rank % ndevices));
+    CHECK_HIP(hipGetDevice(&get_cur_dev));
 
-    hipEventCreate(&start);
-    hipEventCreate(&stop);
+    CHECK_HIP(hipEventCreate(&start));
+    CHECK_HIP(hipEventCreate(&stop));
 
     roc_shmem_init();
     mype = roc_shmem_my_pe();
@@ -109,27 +122,20 @@ int main(int argc, char *argv[]) {
       gpu_id_list = rocr_visible_devices;
     }
 
-    int ndevices;
-    hipGetDeviceCount(&ndevices);
-    hipSetDevice(mype%ndevices);
-    int get_cur_dev;
-    hipGetDevice(&get_cur_dev);
-//    char name[MPI_MAX_PROCESSOR_NAME];
+    char name[MPI_MAX_PROCESSOR_NAME];
     int resultlength;
-//    MPI_Get_processor_name(name, &resultlength);
-//    printf("IN USE - mpi %d/%d, roc_shmem %d/%d , ndevices=%d,cur=%d, GPU_ID=%s,node=%s\n", rank, nranks, mype, npes, ndevices, get_cur_dev, gpu_id_list, name);
-    printf("roc_shmem %d/%d , ndevices=%d,cur=%d, GPU_ID=%s\n", mype, npes, ndevices, get_cur_dev, gpu_id_list);
+    MPI_Get_processor_name(name, &resultlength);
+    printf("IN USE - mpi %d/%d, roc_shmem %d/%d , ndevices=%d,cur=%d, GPU_ID=%s,node=%s\n", rank, nranks, mype, npes, ndevices, get_cur_dev, gpu_id_list, name);
     fflush(stdout);
 
 
-    data_d = (double *)roc_shmem_malloc(sizeof(double));
     data_d = (double *)roc_shmem_malloc(MAX_MSG_SIZE);
     flag_d = (int *)roc_shmem_malloc((iter+skip)*sizeof(int));
-    hipMemset(data_d, 0, MAX_MSG_SIZE);
-    hipMemset(flag_d, 0, (iter+skip)*sizeof(int));
-    hipMalloc((void **)&counter_d, sizeof(unsigned int) * 2);
-    hipMemset(counter_d, 0, sizeof(unsigned int) * 2);
-    hipDeviceSynchronize();
+    CHECK_HIP(hipMemset(data_d, 0, MAX_MSG_SIZE));
+    CHECK_HIP(hipMemset(flag_d, 0, (iter+skip)*sizeof(int)));
+    CHECK_HIP(hipMalloc((void **)&counter_d, sizeof(unsigned int) * 2));
+    CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
+    CHECK_HIP(hipDeviceSynchronize());
     int mypeer=atoi(argv[1]);
     if(atoi(argv[2])>0) max_blocks=atoi(argv[2]);
     if(atoi(argv[3])>0) max_threads=atoi(argv[3]);
@@ -137,34 +143,29 @@ int main(int argc, char *argv[]) {
     if(!mype) printf("max_blocks=%d, max_threads=%d, iter=%d\n",max_blocks, max_threads,iter);
     fflush(stdout);
     for(int peer=mypeer; peer<8;peer++){
-	//if (peer==3) continue;
-	//if (peer==5) continue;
-	//if (peer==7) continue;
     	if (mype == 0) {
     	    i = 0;
-    	    for (int size = 8; size <= MAX_MSG_SIZE; size *= 2) {
-		//printf("mysize=%d\n",size);
-		//fflush(stdout);
-		hipMemset(counter_d, 0, sizeof(unsigned int) * 2);
+    	    for (int size = 32; size <= MAX_MSG_SIZE; size *= 2) {
+		          CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
     	        bw<<<max_blocks, max_threads>>>(data_d, flag_d, counter_d, size / sizeof(double), mype, skip, peer);
-    	        hipGetLastError();
-    	        hipDeviceSynchronize();
-    	        hipMemset(counter_d, 0, sizeof(unsigned int) * 2);
+    	        CHECK_HIP(hipGetLastError());
+    	        CHECK_HIP(hipDeviceSynchronize());
+    	        CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
 
-    	        hipEventRecord(start);
+    	        CHECK_HIP(hipEventRecord(start));
     	        bw<<<max_blocks, max_threads>>>(data_d, flag_d,counter_d, size / sizeof(double), mype, iter, peer);
-    	        hipEventRecord(stop);
+    	        CHECK_HIP(hipEventRecord(stop));
 
-    	        hipGetLastError();
-    	        hipEventSynchronize(stop);
+    	        CHECK_HIP(hipGetLastError());
+    	        CHECK_HIP(hipEventSynchronize(stop));
 
-    	        hipEventElapsedTime(&milliseconds, start, stop);
+    	        CHECK_HIP(hipEventElapsedTime(&milliseconds, start, stop));
     	        printf("peer,%d,size,%d, iter, %d, bw,%f\n",peer, size, iter, size / (milliseconds * (B_TO_GB / (iter * MS_TO_S))));
-    	        //roc_shmem_barrier_all();
-    	        i++;
+    	        roc_shmem_barrier_all();
+              i++;
     	    }
     	} else {
-    	    for (int size = 8; size <= MAX_MSG_SIZE; size *= 2) {
+    	    for (int size = 32; size <= MAX_MSG_SIZE; size *= 2) {
     	        roc_shmem_barrier_all();
     	    }
     	}
@@ -174,7 +175,10 @@ finalize:
     if (data_d) {
       roc_shmem_free(data_d);
     }
+     if (counter_d) {
+    CHECK_HIP(hipFree(counter_d));
+  }
     roc_shmem_finalize();
-//    MPI_Finalize();
+    MPI_Finalize();
     return 0;
 }
