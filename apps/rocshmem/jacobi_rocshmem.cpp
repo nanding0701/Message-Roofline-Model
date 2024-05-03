@@ -1,29 +1,3 @@
-/* Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  * Neither the name of NVIDIA CORPORATION nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #include "xmr.hpp"
 #include "commons/mpi.hpp"
 #include "commons/rocshmem.hpp"
@@ -57,8 +31,12 @@ const real PI = 2.0 * std::asin(1.0);
 
 /* This kernel implements neighborhood synchronization for Jacobi. It updates
    the neighbor PEs about its arrival and waits for notification from them. */
-__global__ void syncneighborhood_kernel(int my_pe, int num_pes, uint64_t* sync_arr,
-                                        long counter) {
+__global__ void syncneighborhood_kernel(int my_pe, int num_pes, int* sync_arr,
+                                        int counter) {
+    int tid = hipThreadIdx_x;
+    int status[2];
+    status[0]=0;
+    status[1]=0;                                   
     int next_rank = (my_pe + 1) % num_pes;
     int prev_rank = (my_pe == 0) ? num_pes - 1 : my_pe - 1;
     roc_shmem_quiet(); /* To ensure all prior nvshmem operations have been completed */
@@ -68,14 +46,21 @@ __global__ void syncneighborhood_kernel(int my_pe, int num_pes, uint64_t* sync_a
     // MH: @Nan: since signaling not available in roch_shmemx so using atomic_set
     // unavailable: roc_shmemx_signal_op(sync_arr, counter, ROC_SHMEM_SIGNAL_SET, next_rank);
     // unavailable: roc_shmemx_signal_op(sync_arr + 1, counter, ROC_SHMEM_SIGNAL_SET, prev_rank);
-    roc_shmem_uint64_atomic_set(sync_arr, counter, next_rank);
-    roc_shmem_uint64_atomic_set(sync_arr + 1, counter, prev_rank);
-
+    //roc_shmem_uint64_atomic_set(sync_arr, counter, next_rank);
+    //roc_shmem_uint64_atomic_set(sync_arr + 1, counter, prev_rank);
+    roc_shmem_int_p(sync_arr, counter, next_rank);
+    roc_shmem_int_p(sync_arr+1, counter, prev_rank);
+    
+    
     /* Wait for neighbors notification */
     // MH: @Nan: this is not available: roc_shmem_uint64_wait_until_all(sync_arr, 2, NULL, ROC_SHMEM_CMP_GE, counter);
     // roc_shmem_wait_until_all is not available but since the size is 2, we will simply call 2 functions with addresses sync_arr and sync_arr+1
-    roc_shmem_ulong_wait_until(sync_arr, ROC_SHMEM_CMP_GE, counter);
-    roc_shmem_ulong_wait_until(sync_arr+1, ROC_SHMEM_CMP_GE, counter);
+    
+
+    //roc_shmem_int_wait_until(sync_arr, ROC_SHMEM_CMP_GE, counter);
+    //roc_shmem_int_wait_until(sync_arr+1, ROC_SHMEM_CMP_GE, counter);
+    //__syncthreads();
+    roc_shmem_int_wait_until_all(sync_arr, 2, status, ROC_SHMEM_CMP_GE, counter);
 }
 
 __global__ void initialize_boundaries(real* __restrict__ const a_new, real* __restrict__ const a,
@@ -210,12 +195,7 @@ int main(int argc, char* argv[]) {
     status = hipFree(0);
 
     MPI_Comm mpi_comm = MPI_COMM_WORLD;
-    //nvshmemx_init_attr_t attr;
 
-    // attr.mpi_comm = &mpi_comm;
-    // Set symmetric heap size for nvshmem based on problem size
-    // Its default value in nvshmem is 1 GB which is not sufficient
-    // for large mesh sizes
     long long unsigned int mesh_size_per_rank = nx * (((ny - 2) + size - 1) / size + 2);
     long long unsigned int required_symmetric_heap_size =
         2 * mesh_size_per_rank * sizeof(real) *
@@ -355,11 +335,11 @@ int main(int argc, char* argv[]) {
     bool l2_norm_greater_than_tol = true;
 
     /* Used by syncneighborhood kernel */
-    uint64_t* sync_arr = NULL;
-    sync_arr = (uint64_t*)roc_shmem_malloc(2 * sizeof(uint64_t));
-    status = hipMemsetAsync(sync_arr, 0, 2 * sizeof(uint64_t), compute_stream);
+    int* sync_arr = NULL;
+    sync_arr = (int*)roc_shmem_malloc(2 * sizeof(int));
+    status = hipMemsetAsync(sync_arr, 0, 2 * sizeof(int), compute_stream);
     status = hipStreamSynchronize(compute_stream);
-    long synccounter = 1;
+    int synccounter = 1;
 
     while (l2_norm_greater_than_tol && iter < iter_max) {
         // on new iteration: old current vars are now previous vars, old
@@ -380,7 +360,7 @@ int main(int argc, char* argv[]) {
            of barrier that just synchronizes with the neighbor PEs that is the PEs with whom a PE
            communicates. This will perform faster than a global barrier that would do redundant-nccheck
            synchronization for this application. */
-        syncneighborhood_kernel<<<1, 1, 0, compute_stream>>>(mype, npes, sync_arr, synccounter);
+        syncneighborhood_kernel<<<1, 4, 0, compute_stream>>>(mype, npes, sync_arr, synccounter);
         synccounter++;
 
         // perform L2 norm calculation
@@ -499,7 +479,7 @@ double single_gpu(const int nx, const int ny, const int iter_max, real* const a_
     int iy_end = ny - 3;
 
     auto status = hipMalloc((void**)&a, nx * ny * sizeof(real));
-    status = hipMalloc((void**)&a_new, nx * ny * sizeof(real));
+    status = hipMalloc((void**)&a_new, nx * ny * sizeof(real));    
 
     status = hipMemset(a, 0, nx * ny * sizeof(real));
     status = hipMemset(a_new, 0, nx * ny * sizeof(real));
