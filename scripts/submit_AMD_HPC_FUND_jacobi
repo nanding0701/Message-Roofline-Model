@@ -1,0 +1,19 @@
+#!/bin/bash
+#SBATCH -J test               # Job name
+#SBATCH -o job.%j.out         # Name of stdout output file (%j expands to jobId)
+#SBATCH -N 1                  # Total number of nodes requested
+#SBATCH -n 8                # Total number of mpi tasks requested
+#SBATCH -t 00:30:00           # Run time (hh:mm:ss) - 1.5 hours
+#SBATCH -p mi1008x            # Desired partition
+
+
+#peer, blocks, threads, iter
+module use /share/bpotter/modulefiles/
+module load rocshmem/1.6.3
+module list
+
+gpus=(2 3 4 5 6 7 8)
+for mygpu in ${gpus[@]}
+do
+	srun -N1 -n${mygpu} -c4 ./jacobi_rocshmem -niter 1000 -nx 4096 -ny 4096 -nccheck 1 -csv |& tee log_jacobi_4096x4096_${mygpu}GPU 
+done
