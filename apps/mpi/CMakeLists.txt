@@ -20,9 +20,9 @@ foreach(source_file ${CPP_SOURCES})
   target_include_directories(
     ${exec_name}
     PRIVATE ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_LIST_DIR}/../../include
-            ${ARGPARSE_INCLUDE_DIR} ${MDSPAN_INCLUDE_DIR})
+            ${ARGPARSE_INCLUDE_DIR} ${MDSPAN_INCLUDE_DIR} ${MPI_CXX_HEADER_DIR})
 
-  target_link_libraries(${exec_name} PUBLIC ${MPI_LIBS})
+  target_link_libraries(${exec_name} PUBLIC ${MPI_LIBS} ${MPI_mpi_LIBRARY} ${MPI_mpi_cxx_LIBRARY})
 
   set_target_properties(
     ${exec_name}
@@ -54,9 +54,9 @@ foreach(source_file ${C_SOURCES})
   target_include_directories(
     ${exec_name}
     PRIVATE ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_LIST_DIR}/../../include
-            ${ARGPARSE_INCLUDE_DIR} ${MDSPAN_INCLUDE_DIR})
+            ${ARGPARSE_INCLUDE_DIR} ${MDSPAN_INCLUDE_DIR} ${MPI_CXX_HEADER_DIR})
 
-  target_link_libraries(${exec_name} PUBLIC ${MPI_LIBS})
+  target_link_libraries(${exec_name} PUBLIC ${MPI_LIBS} ${MPI_mpi_LIBRARY})
 
   set_target_properties(
     ${exec_name}
