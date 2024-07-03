@@ -1,12 +1,13 @@
-#!/bin/bash 
+#!/bin/bash
 
-ROCM_DIR="/opt/rocm-6.0.2/"
 export CC=${ROCM_DIR}/bin/hipcc
 export CXX=${ROCM_DIR}/bin/hipcc
 export NVSHMEM_SHMEM_SUPPORT=OFF
+module use /share/bpotter/modulefiles
+module load rocshmem
 export rocshmem_DIR="/share/bpotter/rocshmem_1.6.3/"
 
 cmake ../	\
       -DCMAKE_CXX_COMPILER=${ROCM_DIR}/bin/hipcc\
       -DUSE_NVSHMEM=OFF\
-      -DCMAKE_CUDA_HOST_COMPILER=${ROCM_DIR}/bin/hipcc	
+      -DCMAKE_CUDA_HOST_COMPILER=${ROCM_DIR}/bin/hipcc
