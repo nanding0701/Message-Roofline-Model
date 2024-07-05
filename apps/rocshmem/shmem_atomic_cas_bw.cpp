@@ -3,9 +3,29 @@
 #include "commons/hip.hpp"
 #include "commons/rocshmem.hpp"
 
+#define MAX_ITERS 10
+#define MAX_SKIP 10
+#define THREADS 1024
+#define BLOCKS 4
+#define MAX_MSG_SIZE 64 * 1024
+
+
 int main(int argc, char *argv[]) {
   int mype, npes;
+  uint64_t *data_d = NULL;
+  uint64_t set_value;
+  unsigned int *counter_d;
+  int max_blocks = BLOCKS, max_threads = THREADS;
+  int array_size, i;
+  void **h_tables;
+  uint64_t *h_size_arr;
+  double *h_bw;
 
+  int iter = MAX_ITERS;
+  int skip = MAX_SKIP;
+  int max_msg_size = MAX_MSG_SIZE;
+
+  float milliseconds;
   hipEvent_t start, stop;
 
   int rank, nranks;
@@ -31,6 +51,56 @@ int main(int argc, char *argv[]) {
   printf("Rank %d, ROC_SHMEM \n", mype);
   fflush(stdout);
 
+  const char *gpu_id_list;
+  const char *rocr_visible_devices = getenv("ROCR_VISIBLE_DEVICES");
+  if (rocr_visible_devices == NULL) {
+    gpu_id_list = "N/A";
+  } else {
+    gpu_id_list = rocr_visible_devices;
+  }
+
+  printf("roc_shmem %d/%d , ndevices=%d,cur=%d, GPU_ID=%s\n", mype, npes,
+         ndevices, get_cur_dev, gpu_id_list);
+  fflush(stdout);
+
+  int mypeer = atoi(argv[1]);
+  if (atoi(argv[2]) > 0) max_blocks = atoi(argv[2]);
+  if (atoi(argv[3]) > 0) max_threads = atoi(argv[3]);
+  if (atoi(argv[4]) > 0) iter = atoi(argv[4]);
+  if (!mype) {
+    printf("max_blocks=%d, max_threads=%d, iter=%d\n",
+            max_blocks, max_threads, iter);
+  }
+
+  array_size = floor(std::log2((float)max_msg_size)) + 1;
+  //alloc_tables(&h_tables, 2, array_size);
+  const int num_tables = 2, num_entries_per_table = array_size;
+  CHECK_HIP(hipHostMalloc(&h_tables, num_tables * sizeof(void *), hipHostMallocMapped));
+  //void **tables = *(&h_tables);
+  for (int i = 0; i < num_tables; i++) {
+    CHECK_HIP(
+      hipHostMalloc(&h_tables[i], num_entries_per_table * sizeof(double), hipHostMallocMapped));
+    memset(h_tables[i], 0, num_entries_per_table * sizeof(double));
+  }
+  h_size_arr = (uint64_t *)h_tables[0];
+  h_bw = (double *)h_tables[1];
+
+  data_d = (uint64_t *)roc_shmem_malloc(max_msg_size);
+  CHECK_HIP(hipMemset(data_d, 0, max_msg_size));
+
+  CHECK_HIP(hipMalloc((void **)&counter_d, sizeof(unsigned int) * 2));
+  CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
+
+  CHECK_HIP(hipDeviceSynchronize());
+
+
+  if (data_d) roc_shmem_free(data_d);
+  if (counter_d) CHECK_HIP(hipFree(counter_d));
+
+  for (int i = 0; i < num_tables; i++) {
+    CHECK_HIP(hipHostFree(h_tables[i]));
+  }
+  CHECK_HIP(hipHostFree(h_tables));
   roc_shmem_finalize();
   MPI_Finalize();
   return 0;
