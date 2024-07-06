@@ -3,6 +3,9 @@
 #include "commons/hip.hpp"
 #include "commons/rocshmem.hpp"
 
+#define B_TO_GB (1 << 30)
+#define MS_TO_S 1000
+
 #define MAX_ITERS 10
 #define MAX_SKIP 10
 #define THREADS 1024
@@ -93,6 +96,46 @@ int main(int argc, char *argv[]) {
 
   CHECK_HIP(hipDeviceSynchronize());
 
+  //strncpy(perf_table_name, "shmem_at_cswap_bw", 30);
+  int size;
+  i = 0;
+  if (mype == 0) {
+    for (size = 1024; size <= MAX_MSG_SIZE; size *= 2) {
+      int blocks = max_blocks, threads = max_threads;
+      h_size_arr[i] = size;
+      CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
+      atomic_compare_swap_bw<<<blocks, threads>>>(
+        data_d, counter_d, size / sizeof(uint64_t), mype, skip);
+
+      CHECK_HIP(hipGetLastError());
+      CHECK_HIP(hipDeviceSynchronize());
+      roc_shmem_barrier_all();
+
+      /* reset values in code. */
+      CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
+      CHECK_HIP(hipGetLastError());
+      CHECK_HIP(hipDeviceSynchronize());
+      roc_shmem_barrier_all();
+
+      CHECK_HIP(hipEventRecord(start));
+      atomic_compare_swap_bw<<<blocks, threads>>>(
+        data_d, counter_d, size / sizeof(uint64_t), mype, iter);
+      CHECK_HIP(hipEventRecord(stop));
+      CHECK_HIP(hipGetLastError());
+      CHECK_HIP(hipEventSynchronize(stop));
+      CHECK_HIP(hipEventElapsedTime(&milliseconds, start, stop));
+
+      printf("peer,%d,size,%d,iter,%d,bw,%f\n", mypeer, size, iter,
+              size / (milliseconds * (B_TO_GB / (iter * MS_TO_S))));
+      roc_shmem_barrier_all();
+    }
+  }  else {
+    for (size = 1024; size <= MAX_MSG_SIZE; size *= 2) {
+      roc_shmem_barrier_all();
+      roc_shmem_barrier_all();
+      roc_shmem_barrier_all();
+    }
+  }
 
   if (data_d) roc_shmem_free(data_d);
   if (counter_d) CHECK_HIP(hipFree(counter_d));
