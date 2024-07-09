@@ -12,6 +12,58 @@
 #define BLOCKS 4
 #define MAX_MSG_SIZE 64 * 1024
 
+__global__ void atomic_compare_swap_bw(uint64_t *data_d, volatile unsigned int *counter_d, int len,
+                                      int pe, int iter) {
+  int u, i, j, peer, tid, slice;
+  unsigned int counter;
+  int threads = gridDim.x * blockDim.x;
+  tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+  peer = !pe;
+  slice = threads;
+
+  for (i = 0; i < iter; i++) {
+    for (j = 0; j < len - slice; j += slice) {
+      int idx = j * threads + tid;
+      roc_shmem_uint64_atomic_compare_swap(data_d + idx, i, i + 1, peer);
+      __syncthreads();
+    }
+
+    int idx = j + u * threads + tid;
+    if (idx < len) {
+      roc_shmem_uint64_atomic_compare_swap(data_d + idx, i, i + 1, peer);
+    }
+
+    /* synchronizing across blocks */
+    __syncthreads();
+
+    if (!threadIdx.x) {
+      __threadfence();
+      counter = atomicInc((unsigned int *)counter_d, UINT_MAX);
+      if (counter == (gridDim.x * (i + 1) - 1)) {
+        *(counter_d + 1) += 1;
+      }
+      while (*(counter_d + 1) != i + 1)
+        ;
+    }
+
+    __syncthreads();
+  }
+
+  /* synchronizing across blocks */
+  __syncthreads();
+
+  if (!threadIdx.x) {
+    __threadfence();
+    counter = atomicInc((unsigned int *)counter_d, UINT_MAX);
+    if (counter == (gridDim.x * (i + 1) - 1)) {
+      roc_shmem_quiet();
+      *(counter_d + 1) += 1;
+    }
+    while (*(counter_d + 1) != i + 1)
+      ;
+  }
+}
 
 int main(int argc, char *argv[]) {
   int mype, npes;
@@ -102,7 +154,7 @@ int main(int argc, char *argv[]) {
   if (mype == 0) {
     for (size = 1024; size <= MAX_MSG_SIZE; size *= 2) {
       int blocks = max_blocks, threads = max_threads;
-      h_size_arr[i] = size;
+
       CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
       atomic_compare_swap_bw<<<blocks, threads>>>(
         data_d, counter_d, size / sizeof(uint64_t), mype, skip);
