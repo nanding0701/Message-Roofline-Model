@@ -120,6 +120,8 @@ int main(int argc, char *argv[]) {
   fflush(stdout);
 
   if (argc > 1) {
+    // mypeer is unused, keeping it to match other tests
+    // device 1 is used as the peer
     int mypeer = atoi(argv[1]);
     if (atoi(argv[2]) > 0) max_blocks = atoi(argv[2]);
     if (atoi(argv[3]) > 0) max_threads = atoi(argv[3]);
@@ -154,7 +156,7 @@ int main(int argc, char *argv[]) {
       CHECK_HIP(hipDeviceSynchronize());
       roc_shmem_barrier_all();
 
-      /* reset values in code. */
+      // reset values in code
       CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
       CHECK_HIP(hipGetLastError());
       CHECK_HIP(hipDeviceSynchronize());
