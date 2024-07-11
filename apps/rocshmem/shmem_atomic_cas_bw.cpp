@@ -12,9 +12,10 @@
 #define BLOCKS 4
 #define MAX_MSG_SIZE 64 * 1024
 
-__global__ void atomic_compare_swap_bw(uint64_t *data_d, volatile unsigned int *counter_d, int len,
-                                      int pe, int iter) {
-  int u, i, j, peer, tid, slice;
+__global__ void atomic_compare_swap_bw(
+    uint64_t *data_d, volatile unsigned int *counter_d, int len, int pe, int iter) {
+
+  int i, j, peer, tid, slice;
   unsigned int counter;
   int threads = gridDim.x * blockDim.x;
   tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -24,12 +25,12 @@ __global__ void atomic_compare_swap_bw(uint64_t *data_d, volatile unsigned int *
 
   for (i = 0; i < iter; i++) {
     for (j = 0; j < len - slice; j += slice) {
-      int idx = j * threads + tid;
+      int idx = j + tid;
       roc_shmem_uint64_atomic_compare_swap(data_d + idx, i, i + 1, peer);
       __syncthreads();
     }
 
-    int idx = j + u * threads + tid;
+    int idx = j + tid;
     if (idx < len) {
       roc_shmem_uint64_atomic_compare_swap(data_d + idx, i, i + 1, peer);
     }
@@ -118,27 +119,17 @@ int main(int argc, char *argv[]) {
          ndevices, get_cur_dev, gpu_id_list);
   fflush(stdout);
 
-  int mypeer = atoi(argv[1]);
-  if (atoi(argv[2]) > 0) max_blocks = atoi(argv[2]);
-  if (atoi(argv[3]) > 0) max_threads = atoi(argv[3]);
-  if (atoi(argv[4]) > 0) iter = atoi(argv[4]);
+  if (argc > 1) {
+    int mypeer = atoi(argv[1]);
+    if (atoi(argv[2]) > 0) max_blocks = atoi(argv[2]);
+    if (atoi(argv[3]) > 0) max_threads = atoi(argv[3]);
+    if (atoi(argv[4]) > 0) iter = atoi(argv[4]);
+  }
   if (!mype) {
     printf("max_blocks=%d, max_threads=%d, iter=%d\n",
             max_blocks, max_threads, iter);
+    fflush(stdout);
   }
-
-  array_size = floor(std::log2((float)max_msg_size)) + 1;
-  //alloc_tables(&h_tables, 2, array_size);
-  const int num_tables = 2, num_entries_per_table = array_size;
-  CHECK_HIP(hipHostMalloc(&h_tables, num_tables * sizeof(void *), hipHostMallocMapped));
-  //void **tables = *(&h_tables);
-  for (int i = 0; i < num_tables; i++) {
-    CHECK_HIP(
-      hipHostMalloc(&h_tables[i], num_entries_per_table * sizeof(double), hipHostMallocMapped));
-    memset(h_tables[i], 0, num_entries_per_table * sizeof(double));
-  }
-  h_size_arr = (uint64_t *)h_tables[0];
-  h_bw = (double *)h_tables[1];
 
   data_d = (uint64_t *)roc_shmem_malloc(max_msg_size);
   CHECK_HIP(hipMemset(data_d, 0, max_msg_size));
@@ -148,11 +139,11 @@ int main(int argc, char *argv[]) {
 
   CHECK_HIP(hipDeviceSynchronize());
 
-  //strncpy(perf_table_name, "shmem_at_cswap_bw", 30);
   int size;
   i = 0;
   if (mype == 0) {
     for (size = 1024; size <= MAX_MSG_SIZE; size *= 2) {
+
       int blocks = max_blocks, threads = max_threads;
 
       CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
@@ -177,7 +168,7 @@ int main(int argc, char *argv[]) {
       CHECK_HIP(hipEventSynchronize(stop));
       CHECK_HIP(hipEventElapsedTime(&milliseconds, start, stop));
 
-      printf("peer,%d,size,%d,iter,%d,bw,%f\n", mypeer, size, iter,
+      printf("peer,1,size,%d,iter,%d,bw,%f\n", size, iter,
               size / (milliseconds * (B_TO_GB / (iter * MS_TO_S))));
       roc_shmem_barrier_all();
     }
@@ -192,10 +183,6 @@ int main(int argc, char *argv[]) {
   if (data_d) roc_shmem_free(data_d);
   if (counter_d) CHECK_HIP(hipFree(counter_d));
 
-  for (int i = 0; i < num_tables; i++) {
-    CHECK_HIP(hipHostFree(h_tables[i]));
-  }
-  CHECK_HIP(hipHostFree(h_tables));
   roc_shmem_finalize();
   MPI_Finalize();
   return 0;
