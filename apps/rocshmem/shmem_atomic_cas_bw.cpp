@@ -10,7 +10,7 @@
 #define MAX_SKIP 10
 #define THREADS 1024
 #define BLOCKS 4
-#define MAX_MSG_SIZE 64 * 1024
+#define MAX_MSG_SIZE (32 * 1024 * 1024)
 
 __global__ void atomic_compare_swap_bw(
     uint64_t *data_d, volatile unsigned int *counter_d, int len, int pe, int iter) {
@@ -144,7 +144,7 @@ int main(int argc, char *argv[]) {
   int size;
   i = 0;
   if (mype == 0) {
-    for (size = 1024; size <= MAX_MSG_SIZE; size *= 2) {
+    for (size = 8; size <= MAX_MSG_SIZE; size *= 2) {
 
       int blocks = max_blocks, threads = max_threads;
 
@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
       roc_shmem_barrier_all();
     }
   }  else {
-    for (size = 1024; size <= MAX_MSG_SIZE; size *= 2) {
+    for (size = 8; size <= MAX_MSG_SIZE; size *= 2) {
       roc_shmem_barrier_all();
       roc_shmem_barrier_all();
       roc_shmem_barrier_all();
