@@ -13,14 +13,19 @@
 #define MAX_MSG_SIZE (32 * 1024 * 1024)
 
 __global__ void atomic_compare_swap_bw(
-    uint64_t *data_d, volatile unsigned int *counter_d, int len, int pe, int iter) {
+    uint64_t *data_d,
+    volatile unsigned int *counter_d,
+    int len,
+    int pe,
+    int iter,
+    int peer) {
 
-  int i, j, peer, tid, slice;
+  int i, j, tid, slice;
   unsigned int counter;
   int threads = gridDim.x * blockDim.x;
   tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-  peer = !pe;
+  //peer = !pe;
   slice = threads;
 
   for (i = 0; i < iter; i++) {
@@ -68,6 +73,7 @@ __global__ void atomic_compare_swap_bw(
 
 int main(int argc, char *argv[]) {
   int mype, npes;
+  int mypeer;
   uint64_t *data_d = NULL;
   uint64_t set_value;
   unsigned int *counter_d;
@@ -122,7 +128,7 @@ int main(int argc, char *argv[]) {
   if (argc > 1) {
     // mypeer is unused, keeping it to match other tests
     // device 1 is used as the peer
-    int mypeer = atoi(argv[1]);
+    mypeer = atoi(argv[1]);
     if (atoi(argv[2]) > 0) max_blocks = atoi(argv[2]);
     if (atoi(argv[3]) > 0) max_threads = atoi(argv[3]);
     if (atoi(argv[4]) > 0) iter = atoi(argv[4]);
@@ -150,7 +156,7 @@ int main(int argc, char *argv[]) {
 
       CHECK_HIP(hipMemset(counter_d, 0, sizeof(unsigned int) * 2));
       atomic_compare_swap_bw<<<blocks, threads>>>(
-        data_d, counter_d, size / sizeof(uint64_t), mype, skip);
+        data_d, counter_d, size / sizeof(uint64_t), mype, skip, mypeer);
 
       CHECK_HIP(hipGetLastError());
       CHECK_HIP(hipDeviceSynchronize());
@@ -164,13 +170,13 @@ int main(int argc, char *argv[]) {
 
       CHECK_HIP(hipEventRecord(start));
       atomic_compare_swap_bw<<<blocks, threads>>>(
-        data_d, counter_d, size / sizeof(uint64_t), mype, iter);
+        data_d, counter_d, size / sizeof(uint64_t), mype, iter, mypeer);
       CHECK_HIP(hipEventRecord(stop));
       CHECK_HIP(hipGetLastError());
       CHECK_HIP(hipEventSynchronize(stop));
       CHECK_HIP(hipEventElapsedTime(&milliseconds, start, stop));
 
-      printf("peer,1,size,%d,iter,%d,bw,%f\n", size, iter,
+      printf("peer,%d,size,%d,iter,%d,bw,%f\n", mypeer, size, iter,
               size / (milliseconds * (B_TO_GB / (iter * MS_TO_S))));
       roc_shmem_barrier_all();
     }
