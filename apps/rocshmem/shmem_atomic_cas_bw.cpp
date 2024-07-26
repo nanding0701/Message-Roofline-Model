@@ -10,7 +10,7 @@
 #define MAX_SKIP 10
 #define THREADS 1024
 #define BLOCKS 4
-#define MAX_MSG_SIZE (32 * 1024 * 1024)
+#define MAX_MSG_SIZE (16 * 1024 * 1024)
 
 __global__ void atomic_compare_swap_bw(
     uint64_t *data_d,
@@ -178,6 +178,7 @@ int main(int argc, char *argv[]) {
 
       printf("peer,%d,size,%d,iter,%d,bw,%f\n", mypeer, size, iter,
               size / (milliseconds * (B_TO_GB / (iter * MS_TO_S))));
+      fflush(stdout);
       roc_shmem_barrier_all();
     }
   }  else {
