@@ -25,7 +25,7 @@
 #include <type_traits>
 #include <typeinfo>
 #include <vector>
-
+#include <getopt.h>
 
 // timer class
 class Timer {
