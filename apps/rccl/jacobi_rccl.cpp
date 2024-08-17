@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
         CHECK_HIP(hipSetDevice(local_rank));
     }
     CHECK_HIP(hipFree(0));
-    std::cout << rank << ": " << ": my device is " << local_rank << std::endl;
+    // std::cout << rank << ": my device is " << local_rank << std::endl;
 
     ncclComm_t nccl_comm;
     NCCL_CALL(ncclCommInitRank(&nccl_comm, size, nccl_uid, rank));
@@ -222,10 +222,15 @@ int main(int argc, char* argv[]) {
 
     hipEvent_t push_prep_done;
     CHECK_HIP(hipEventCreateWithFlags(&push_prep_done, hipEventDisableTiming));
+    hipEvent_t push_start;
+    CHECK_HIP(hipEventCreate(&push_start));
     hipEvent_t push_done;
-    CHECK_HIP(hipEventCreateWithFlags(&push_done, hipEventDisableTiming));
+    CHECK_HIP(hipEventCreate(&push_done));
     hipEvent_t reset_l2norm_done;
     CHECK_HIP(hipEventCreateWithFlags(&reset_l2norm_done, hipEventDisableTiming));
+
+    float communication_milliseconds{0.0f};
+    float iter_communication_milliseconds{0.0f};
 
     real* l2_norm_d;
     CHECK_HIP(hipMalloc(&l2_norm_d, sizeof(real)));
@@ -290,6 +295,7 @@ int main(int argc, char* argv[]) {
 
         // Apply periodic boundary conditions
         // PUSH_RANGE("NCCL_LAUNCH", 5)
+        CHECK_HIP(hipEventRecord(push_start, push_stream));
         NCCL_CALL(ncclGroupStart());
         NCCL_CALL(ncclRecv(a_new,                     nx, NCCL_REAL_TYPE, top,    nccl_comm, push_stream));
         NCCL_CALL(ncclSend(a_new + (iy_end - 1) * nx, nx, NCCL_REAL_TYPE, bottom, nccl_comm, push_stream));
@@ -312,6 +318,11 @@ int main(int argc, char* argv[]) {
 
         std::swap(a_new, a);
         iter++;
+
+        CHECK_HIP(hipEventSynchronize(push_done));
+        CHECK_HIP(hipEventElapsedTime(&iter_communication_milliseconds,
+                                      push_start, push_done));
+        communication_milliseconds += iter_communication_milliseconds;
     }
     CHECK_HIP(hipDeviceSynchronize());
     double stop = MPI_Wtime();
@@ -342,8 +353,8 @@ int main(int argc, char* argv[]) {
 
     if (rank == 0 && result_correct) {
         if (csv) {
-            printf("nccl_overlap, %d, %d, %d, %d, %d, 1, %f, %f\n", nx, ny, iter_max, nccheck, size,
-                   (stop - start), runtime_serial);
+            printf("rccl_overlap, %d, %d, %d, %d, %d, 1, %f, %f, %f\n", nx, ny, iter_max, nccheck, size,
+                   (stop - start), runtime_serial, communication_milliseconds * 0.001f);
         } else {
             printf("Num GPUs: %d.\n", size);
             printf(
@@ -354,6 +365,7 @@ int main(int argc, char* argv[]) {
         }
     }
     CHECK_HIP(hipEventDestroy(reset_l2norm_done));
+    CHECK_HIP(hipEventDestroy(push_start));
     CHECK_HIP(hipEventDestroy(push_done));
     CHECK_HIP(hipEventDestroy(push_prep_done));
     CHECK_HIP(hipStreamDestroy(push_stream));
