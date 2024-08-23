@@ -3,7 +3,7 @@
 #include "commons/hip.hpp"
 #include "commons/rccl.hpp"
 
-// #define HAVE_ROCPRIM
+#define HAVE_ROCPRIM
 
 #ifdef HAVE_ROCPRIM
 #include <rocprim/block/block_reduce.hpp>
