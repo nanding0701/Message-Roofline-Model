@@ -1,0 +1,22 @@
+#!/bin/bash
+
+#SBATCH -A CSC589
+#SBATCH -J rccl_jacobi
+#SBATCH -o rccl_jacobi.out
+#SBATCH -t 05:00
+#SBATCH -p batch
+#SBATCH -q debug
+#SBATCH -N 1
+
+module load rocm/6.0.0
+export LD_LIBRARY_PATH=${CRAY_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}
+export MPICH_GPU_SUPPORT_ENABLED=1
+
+exe="./jacobi_rccl"
+gpus=(2 4 6 8)
+for mygpu in ${gpus[@]}
+do
+        srun -N 1 -n ${mygpu} ${exe} \
+                -niter 1000 -nx 8192 -ny 8192 -nccheck 1 -csv \
+                >> jacobi_${PWD##*/}_frontier_${SLURM_JOB_ID}.csv
+done
