@@ -243,8 +243,6 @@ int main(int argc, char* argv[]) {
     int mype = roc_shmem_my_pe();
 printf("**** initialization complete \n"); fflush(stdout);
     roc_shmem_barrier_all();
-    status = hipDeviceSynchronize();
-
 
     bool result_correct = true;
     real* a;
@@ -263,7 +261,6 @@ printf("**** initialization complete \n"); fflush(stdout);
     runtime_serial = single_gpu(nx, ny, iter_max, a_ref_h, nccheck, !csv && (0 == mype), mype);
 printf("**** single GPU run complete \n"); fflush(stdout);
     roc_shmem_barrier_all();
-    status = hipDeviceSynchronize();
     // ny - 2 rows are distributed amongst `size` ranks in such a way
     // that each rank gets either (ny - 2) / size or (ny - 2) / size + 1 rows.
     // This optimizes load balancing when (ny - 2) % size != 0
@@ -284,13 +281,9 @@ printf("**** single GPU run complete \n"); fflush(stdout);
         nx * (chunk_size_high + 2) *
         sizeof(real));  // Using chunk_size_high so that it is same across all PEs
     a_new = (real*)roc_shmem_malloc(nx * (chunk_size_high + 2) * sizeof(real));
-    roc_shmem_barrier_all();
-    status = hipDeviceSynchronize();
 
     status = hipMemset(a, 0, nx * (chunk_size + 2) * sizeof(real));
     status = hipMemset(a_new, 0, nx * (chunk_size + 2) * sizeof(real));
-    roc_shmem_barrier_all();
-    status = hipDeviceSynchronize();
 
     // Calculate local domain boundaries
     int iy_start_global;  // My start index in the global array
@@ -318,7 +311,6 @@ printf("**** single GPU run complete \n"); fflush(stdout);
     initialize_boundaries<<<(ny / npes) / 128 + 1, 128>>>(a, a_new, PI, iy_start_global - 1, nx,
                                                           chunk_size, ny - 2);
 printf("**** bndry init complete \n"); fflush(stdout);
-    status = hipDeviceSynchronize();
     status = hipGetLastError();
 printf("**** last error complete \n"); fflush(stdout);
     status = hipDeviceSynchronize();
