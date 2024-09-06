@@ -278,7 +278,6 @@ int main(int argc, char* argv[]) {
 
     int npes = roc_shmem_n_pes();
     int mype = roc_shmem_my_pe();
-printf("**** initialization complete \n"); fflush(stdout);
     roc_shmem_barrier_all();
 
     bool result_correct = true;
@@ -296,7 +295,6 @@ printf("**** initialization complete \n"); fflush(stdout);
     status = hipHostMalloc(&a_ref_h, nx * ny * sizeof(real));
     status = hipHostMalloc(&a_h, nx * ny * sizeof(real));
     runtime_serial = single_gpu(nx, ny, iter_max, a_ref_h, nccheck, !csv && (0 == mype), mype);
-printf("**** single GPU run complete \n"); fflush(stdout);
     roc_shmem_barrier_all();
     // ny - 2 rows are distributed amongst `size` ranks in such a way
     // that each rank gets either (ny - 2) / size or (ny - 2) / size + 1 rows.
@@ -347,22 +345,17 @@ printf("**** single GPU run complete \n"); fflush(stdout);
     // Set diriclet boundary conditions on left and right boundary
     initialize_boundaries<<<(ny / npes) / 128 + 1, 128>>>(a, a_new, PI, iy_start_global - 1, nx,
                                                           chunk_size, ny - 2);
-printf("**** bndry init complete \n"); fflush(stdout);
     status = hipGetLastError();
-printf("**** last error complete \n"); fflush(stdout);
     status = hipDeviceSynchronize();
-printf("**** sync'd device \n"); fflush(stdout);
     status = hipStreamCreateWithFlags(&compute_stream, hipStreamNonBlocking);
     status = hipStreamCreate(&reset_l2_norm_stream);
     status = hipEventCreateWithFlags(&compute_done[0], hipEventDisableTiming);
     status = hipEventCreateWithFlags(&compute_done[1], hipEventDisableTiming);
     status = hipEventCreateWithFlags(&reset_l2_norm_done[0], hipEventDisableTiming);
     status = hipEventCreateWithFlags(&reset_l2_norm_done[1], hipEventDisableTiming);
-printf("**** in between stream/event creation"); fflush(stdout);
     // TODO: Error checking
     status = hipEventCreate(&communication_event_timers[0]);
     status = hipEventCreate(&communication_event_timers[1]);
-printf("**** stream/event creation complete \n"); fflush(stdout);
 
     for (int i = 0; i < 2; ++i) {
         status = hipEventCreateWithFlags(&l2_norm_bufs[i].copy_done, hipEventDisableTiming);
@@ -388,8 +381,6 @@ printf("**** stream/event creation complete \n"); fflush(stdout);
     dim3 dim_grid((nx + dim_block_x - 1) / dim_block_x,
                   (chunk_size + dim_block_y - 1) / dim_block_y, 1);
 
-    std::cout << mype << ",dim_grid=" << dim_grid.x << "," << dim_grid.y << "," << dim_grid.z << std::endl;
-    fflush(stdout);
     int iter = 0;
     if (!mype) {
         for (int i = 0; i < 2; ++i) {
