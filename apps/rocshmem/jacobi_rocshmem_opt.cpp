@@ -547,8 +547,8 @@ double single_gpu(const int nx, const int ny, const int iter_max, real* const a_
             "check every %d iterations\n",
             iter_max, ny, nx, nccheck);
 
-    constexpr int dim_block_x = 1024;
-    constexpr int dim_block_y = 1;
+    constexpr int dim_block_x = 32;
+    constexpr int dim_block_y = 32;
     dim3 dim_grid((nx + dim_block_x - 1) / dim_block_x, ((ny - 2) + dim_block_y - 1) / dim_block_y,
                   1);
 
