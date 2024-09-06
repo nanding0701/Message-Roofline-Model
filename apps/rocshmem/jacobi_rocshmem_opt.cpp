@@ -218,8 +218,9 @@ int main(int argc, char* argv[]) {
     long long unsigned int mesh_size_per_rank = nx * (((ny - 2) + size - 1) / size + 2);
     long long unsigned int required_symmetric_heap_size =
         2 * mesh_size_per_rank * sizeof(real) *
-        1.1;  // Factor 2 is because 2 arrays are allocated - a and a_new
-              // 1.1 factor is just for alignment or other usage
+        4.0;  // Factor 2 is because 2 arrays are allocated - a and a_new
+              // 4.0 factor is just for alignment or other usage
+              // it was the minimum factor required to make it work on the AMD Fund
 
     char * value = getenv("ROC_SHMEM_HEAP_SIZE");
     if (value) { /* env variable is set */
