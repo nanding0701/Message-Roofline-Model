@@ -86,7 +86,44 @@ __global__ void jacobi_kernel(real* __restrict__ const a_new, const real* __rest
                               real* __restrict__ const l2_norm, const int iy_start,
                               const int iy_end, const int nx, const int top_pe, const int top_iy,
                               const int bottom_pe, const int bottom_iy) {
+#ifdef HAVE_ROCPRIM
+    using BlockReduce = rocprim::block_reduce<real, BLOCK_DIM_X,
+            rocprim::block_reduce_algorithm::using_warp_reduce, BLOCK_DIM_Y>;
+    __shared__ typename BlockReduce::storage_type temp_storage;
+#endif  // HAVE_ROCPRIM
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + iy_start;
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    real local_l2_norm = 0.0;
 
+    if (iy < iy_end && ix < (nx - 1)) {
+        const real new_val = 0.25 * (a[iy * nx + ix + 1] + a[iy * nx + ix - 1] +
+                                     a[(iy + 1) * nx + ix] + a[(iy - 1) * nx + ix]);
+        a_new[iy * nx + ix] = new_val;
+
+        real residue = new_val - a[iy * nx + ix];
+        local_l2_norm += residue * residue;
+
+        if (iy_start == iy) {
+            roc_shmem_float_p(a_new + top_iy * nx + ix, new_val, top_pe);
+        }
+        if ((iy_end - 1) == iy) {
+            roc_shmem_float_p(a_new + bottom_iy * nx + ix, new_val, bottom_pe);
+        }
+    }
+#ifdef HAVE_ROCPRIM
+    real block_l2_norm;
+    BlockReduce().reduce(local_l2_norm, block_l2_norm, temp_storage);
+    if (0 == threadIdx.y && 0 == threadIdx.x) atomicAdd(l2_norm, block_l2_norm);
+#else
+    atomicAdd(l2_norm, local_l2_norm);
+#endif  // HAVE_ROCPRIM
+}
+
+template <int BLOCK_DIM_X, int BLOCK_DIM_Y>
+__global__ void jacobi_block_comm_kernel(real* __restrict__ const a_new, const real* __restrict__ const a,
+                              real* __restrict__ const l2_norm, const int iy_start,
+                              const int iy_end, const int nx, const int top_pe, const int top_iy,
+                              const int bottom_pe, const int bottom_iy) {
 #ifdef HAVE_ROCPRIM
     using BlockReduce = rocprim::block_reduce<real, BLOCK_DIM_X,
             rocprim::block_reduce_algorithm::using_warp_reduce, BLOCK_DIM_Y>;
@@ -218,8 +255,8 @@ int main(int argc, char* argv[]) {
     long long unsigned int mesh_size_per_rank = nx * (((ny - 2) + size - 1) / size + 2);
     long long unsigned int required_symmetric_heap_size =
         2 * mesh_size_per_rank * sizeof(real) *
-        4.0;  // Factor 2 is because 2 arrays are allocated - a and a_new
-              // 4.0 factor is just for alignment or other usage
+        5.0;  // Factor 2 is because 2 arrays are allocated - a and a_new
+              // 5.0 factor is just for alignment or other usage
               // it was the minimum factor required to make it work on the AMD Fund
 
     char * value = getenv("ROC_SHMEM_HEAP_SIZE");
