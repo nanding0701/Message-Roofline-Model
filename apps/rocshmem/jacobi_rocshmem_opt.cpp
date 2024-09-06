@@ -9,7 +9,7 @@
 #include <rocprim/block/block_reduce.hpp>
 #endif
 
-// convert NVSHMEM_SYMMETRIC_SIZE string to long long unsigned int
+// convert ROC_SHMEM_HEAP_SIZE string to long long unsigned int
 long long unsigned int parse_nvshmem_symmetric_size(char *value) {
     long long unsigned int units, size;
 
@@ -221,11 +221,11 @@ int main(int argc, char* argv[]) {
         1.1;  // Factor 2 is because 2 arrays are allocated - a and a_new
               // 1.1 factor is just for alignment or other usage
 
-    char * value = getenv("NVSHMEM_SYMMETRIC_SIZE");
+    char * value = getenv("ROC_SHMEM_HEAP_SIZE");
     if (value) { /* env variable is set */
         long long unsigned int size_env = parse_nvshmem_symmetric_size(value);
         if (size_env < required_symmetric_heap_size) {
-            fprintf(stderr, "ERROR: Minimum NVSHMEM_SYMMETRIC_SIZE = %lluB, Current NVSHMEM_SYMMETRIC_SIZE = %s\n", required_symmetric_heap_size, value);
+            fprintf(stderr, "ERROR: Minimum ROC_SHMEM_HEAP_SIZE = %lluB, Current ROC_SHMEM_HEAP_SIZE = %s\n", required_symmetric_heap_size, value);
             MPI_CHECK(MPI_Finalize());
             return -1;
         }
@@ -233,8 +233,8 @@ int main(int argc, char* argv[]) {
         char symmetric_heap_size_str[100];
         sprintf(symmetric_heap_size_str, "%llu", required_symmetric_heap_size);
         if (!rank && !csv)
-            printf("Setting environment variable NVSHMEM_SYMMETRIC_SIZE = %llu\n", required_symmetric_heap_size);
-        setenv("NVSHMEM_SYMMETRIC_SIZE", symmetric_heap_size_str, 1);
+            printf("Setting environment variable ROC_SHMEM_HEAP_SIZE = %llu\n", required_symmetric_heap_size);
+        setenv("ROC_SHMEM_HEAP_SIZE", symmetric_heap_size_str, 1);
     }
     roc_shmem_init(); //_attr(NVSHMEMX_INIT_WITH_MPI_COMM, &attr);
 
@@ -242,6 +242,8 @@ int main(int argc, char* argv[]) {
     int mype = roc_shmem_my_pe();
 printf("**** initialization complete \n"); fflush(stdout);
     roc_shmem_barrier_all();
+    status = hipDeviceSynchronize();
+
 
     bool result_correct = true;
     real* a;
@@ -260,6 +262,7 @@ printf("**** initialization complete \n"); fflush(stdout);
     runtime_serial = single_gpu(nx, ny, iter_max, a_ref_h, nccheck, !csv && (0 == mype), mype);
 printf("**** single GPU run complete \n"); fflush(stdout);
     roc_shmem_barrier_all();
+    status = hipDeviceSynchronize();
     // ny - 2 rows are distributed amongst `size` ranks in such a way
     // that each rank gets either (ny - 2) / size or (ny - 2) / size + 1 rows.
     // This optimizes load balancing when (ny - 2) % size != 0
@@ -280,9 +283,13 @@ printf("**** single GPU run complete \n"); fflush(stdout);
         nx * (chunk_size_high + 2) *
         sizeof(real));  // Using chunk_size_high so that it is same across all PEs
     a_new = (real*)roc_shmem_malloc(nx * (chunk_size_high + 2) * sizeof(real));
+    roc_shmem_barrier_all();
+    status = hipDeviceSynchronize();
 
     status = hipMemset(a, 0, nx * (chunk_size + 2) * sizeof(real));
     status = hipMemset(a_new, 0, nx * (chunk_size + 2) * sizeof(real));
+    roc_shmem_barrier_all();
+    status = hipDeviceSynchronize();
 
     // Calculate local domain boundaries
     int iy_start_global;  // My start index in the global array
@@ -310,6 +317,7 @@ printf("**** single GPU run complete \n"); fflush(stdout);
     initialize_boundaries<<<(ny / npes) / 128 + 1, 128>>>(a, a_new, PI, iy_start_global - 1, nx,
                                                           chunk_size, ny - 2);
 printf("**** bndry init complete \n"); fflush(stdout);
+    status = hipDeviceSynchronize();
     status = hipGetLastError();
 printf("**** last error complete \n"); fflush(stdout);
     status = hipDeviceSynchronize();
