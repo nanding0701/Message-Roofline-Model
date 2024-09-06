@@ -1,6 +1,7 @@
 #include "xmr.hpp"
 #include "commons/mpi.hpp"
 #include "commons/rocshmem.hpp"
+#include "commons/hip.hpp"
 
 #define HAVE_ROCPRIM
 
@@ -41,7 +42,7 @@ __global__ void syncneighborhood_kernel(int my_pe, int num_pes, int* sync_arr,
     int tid = hipThreadIdx_x;
     int status[2];
     status[0]=0;
-    status[1]=0;                                   
+    status[1]=0;
     int next_rank = (my_pe + 1) % num_pes;
     int prev_rank = (my_pe == 0) ? num_pes - 1 : my_pe - 1;
     roc_shmem_quiet(); /* To ensure all prior nvshmem operations have been completed */
@@ -55,12 +56,12 @@ __global__ void syncneighborhood_kernel(int my_pe, int num_pes, int* sync_arr,
     //roc_shmem_uint64_atomic_set(sync_arr + 1, counter, prev_rank);
     roc_shmem_int_p(sync_arr, counter, next_rank);
     roc_shmem_int_p(sync_arr+1, counter, prev_rank);
-    
-    
+
+
     /* Wait for neighbors notification */
     // MH: @Nan: this is not available: roc_shmem_uint64_wait_until_all(sync_arr, 2, NULL, ROC_SHMEM_CMP_GE, counter);
     // roc_shmem_wait_until_all is not available but since the size is 2, we will simply call 2 functions with addresses sync_arr and sync_arr+1
-    
+
 
     //roc_shmem_int_wait_until(sync_arr, ROC_SHMEM_CMP_GE, counter);
     //roc_shmem_int_wait_until(sync_arr+1, ROC_SHMEM_CMP_GE, counter);
@@ -239,7 +240,7 @@ int main(int argc, char* argv[]) {
 
     int npes = roc_shmem_n_pes();
     int mype = roc_shmem_my_pe();
-
+printf("**** initialization complete \n"); fflush(stdout);
     roc_shmem_barrier_all();
 
     bool result_correct = true;
@@ -257,7 +258,7 @@ int main(int argc, char* argv[]) {
     status = hipHostMalloc(&a_ref_h, nx * ny * sizeof(real));
     status = hipHostMalloc(&a_h, nx * ny * sizeof(real));
     runtime_serial = single_gpu(nx, ny, iter_max, a_ref_h, nccheck, !csv && (0 == mype), mype);
-
+printf("**** single GPU run complete \n"); fflush(stdout);
     roc_shmem_barrier_all();
     // ny - 2 rows are distributed amongst `size` ranks in such a way
     // that each rank gets either (ny - 2) / size or (ny - 2) / size + 1 rows.
@@ -308,19 +309,22 @@ int main(int argc, char* argv[]) {
     // Set diriclet boundary conditions on left and right boundary
     initialize_boundaries<<<(ny / npes) / 128 + 1, 128>>>(a, a_new, PI, iy_start_global - 1, nx,
                                                           chunk_size, ny - 2);
+printf("**** bndry init complete \n"); fflush(stdout);
     status = hipGetLastError();
+printf("**** last error complete \n"); fflush(stdout);
     status = hipDeviceSynchronize();
-
+printf("**** sync'd device \n"); fflush(stdout);
     status = hipStreamCreateWithFlags(&compute_stream, hipStreamNonBlocking);
     status = hipStreamCreate(&reset_l2_norm_stream);
     status = hipEventCreateWithFlags(&compute_done[0], hipEventDisableTiming);
     status = hipEventCreateWithFlags(&compute_done[1], hipEventDisableTiming);
     status = hipEventCreateWithFlags(&reset_l2_norm_done[0], hipEventDisableTiming);
     status = hipEventCreateWithFlags(&reset_l2_norm_done[1], hipEventDisableTiming);
-    
+printf("**** in between stream/event creation"); fflush(stdout);
     // TODO: Error checking
     status = hipEventCreate(&communication_event_timers[0]);
     status = hipEventCreate(&communication_event_timers[1]);
+printf("**** stream/event creation complete \n"); fflush(stdout);
 
     for (int i = 0; i < 2; ++i) {
         status = hipEventCreateWithFlags(&l2_norm_bufs[i].copy_done, hipEventDisableTiming);
@@ -339,12 +343,15 @@ int main(int argc, char* argv[]) {
         if (!csv) printf("Jacobi relaxation: %d iterations on %d x %d mesh\n", iter_max, ny, nx);
     }
 
-    constexpr int dim_block_x = 1024;
-    constexpr int dim_block_y = 1;
+    //constexpr int dim_block_x = 1024;
+    //constexpr int dim_block_y = 1;
+    constexpr int dim_block_x = 32;
+    constexpr int dim_block_y = 32;
     dim3 dim_grid((nx + dim_block_x - 1) / dim_block_x,
                   (chunk_size + dim_block_y - 1) / dim_block_y, 1);
 
     std::cout << mype << ",dim_grid=" << dim_grid.x << "," << dim_grid.y << "," << dim_grid.z << std::endl;
+    fflush(stdout);
     int iter = 0;
     if (!mype) {
         for (int i = 0; i < 2; ++i) {
@@ -514,7 +521,7 @@ double single_gpu(const int nx, const int ny, const int iter_max, real* const a_
     int iy_end = ny - 3;
 
     auto status = hipMalloc((void**)&a, nx * ny * sizeof(real));
-    status = hipMalloc((void**)&a_new, nx * ny * sizeof(real));    
+    status = hipMalloc((void**)&a_new, nx * ny * sizeof(real));
 
     status = hipMemset(a, 0, nx * ny * sizeof(real));
     status = hipMemset(a_new, 0, nx * ny * sizeof(real));
