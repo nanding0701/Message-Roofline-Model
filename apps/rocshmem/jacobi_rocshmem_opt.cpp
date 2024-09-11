@@ -1,6 +1,7 @@
 #include "xmr.hpp"
 #include "commons/mpi.hpp"
 #include "commons/rocshmem.hpp"
+#include "commons/hip.hpp"
 
 #define HAVE_ROCPRIM
 
@@ -8,7 +9,7 @@
 #include <rocprim/block/block_reduce.hpp>
 #endif
 
-// convert NVSHMEM_SYMMETRIC_SIZE string to long long unsigned int
+// convert ROC_SHMEM_HEAP_SIZE string to long long unsigned int
 long long unsigned int parse_nvshmem_symmetric_size(char *value) {
     long long unsigned int units, size;
 
@@ -41,7 +42,7 @@ __global__ void syncneighborhood_kernel(int my_pe, int num_pes, int* sync_arr,
     int tid = hipThreadIdx_x;
     int status[2];
     status[0]=0;
-    status[1]=0;                                   
+    status[1]=0;
     int next_rank = (my_pe + 1) % num_pes;
     int prev_rank = (my_pe == 0) ? num_pes - 1 : my_pe - 1;
     roc_shmem_quiet(); /* To ensure all prior nvshmem operations have been completed */
@@ -55,12 +56,12 @@ __global__ void syncneighborhood_kernel(int my_pe, int num_pes, int* sync_arr,
     //roc_shmem_uint64_atomic_set(sync_arr + 1, counter, prev_rank);
     roc_shmem_int_p(sync_arr, counter, next_rank);
     roc_shmem_int_p(sync_arr+1, counter, prev_rank);
-    
-    
+
+
     /* Wait for neighbors notification */
     // MH: @Nan: this is not available: roc_shmem_uint64_wait_until_all(sync_arr, 2, NULL, ROC_SHMEM_CMP_GE, counter);
     // roc_shmem_wait_until_all is not available but since the size is 2, we will simply call 2 functions with addresses sync_arr and sync_arr+1
-    
+
 
     //roc_shmem_int_wait_until(sync_arr, ROC_SHMEM_CMP_GE, counter);
     //roc_shmem_int_wait_until(sync_arr+1, ROC_SHMEM_CMP_GE, counter);
@@ -85,7 +86,44 @@ __global__ void jacobi_kernel(real* __restrict__ const a_new, const real* __rest
                               real* __restrict__ const l2_norm, const int iy_start,
                               const int iy_end, const int nx, const int top_pe, const int top_iy,
                               const int bottom_pe, const int bottom_iy) {
+#ifdef HAVE_ROCPRIM
+    using BlockReduce = rocprim::block_reduce<real, BLOCK_DIM_X,
+            rocprim::block_reduce_algorithm::using_warp_reduce, BLOCK_DIM_Y>;
+    __shared__ typename BlockReduce::storage_type temp_storage;
+#endif  // HAVE_ROCPRIM
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + iy_start;
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    real local_l2_norm = 0.0;
 
+    if (iy < iy_end && ix < (nx - 1)) {
+        const real new_val = 0.25 * (a[iy * nx + ix + 1] + a[iy * nx + ix - 1] +
+                                     a[(iy + 1) * nx + ix] + a[(iy - 1) * nx + ix]);
+        a_new[iy * nx + ix] = new_val;
+
+        real residue = new_val - a[iy * nx + ix];
+        local_l2_norm += residue * residue;
+
+        if (iy_start == iy) {
+            roc_shmem_float_p(a_new + top_iy * nx + ix, new_val, top_pe);
+        }
+        if ((iy_end - 1) == iy) {
+            roc_shmem_float_p(a_new + bottom_iy * nx + ix, new_val, bottom_pe);
+        }
+    }
+#ifdef HAVE_ROCPRIM
+    real block_l2_norm;
+    BlockReduce().reduce(local_l2_norm, block_l2_norm, temp_storage);
+    if (0 == threadIdx.y && 0 == threadIdx.x) atomicAdd(l2_norm, block_l2_norm);
+#else
+    atomicAdd(l2_norm, local_l2_norm);
+#endif  // HAVE_ROCPRIM
+}
+
+template <int BLOCK_DIM_X, int BLOCK_DIM_Y>
+__global__ void jacobi_block_comm_kernel(real* __restrict__ const a_new, const real* __restrict__ const a,
+                              real* __restrict__ const l2_norm, const int iy_start,
+                              const int iy_end, const int nx, const int top_pe, const int top_iy,
+                              const int bottom_pe, const int bottom_iy) {
 #ifdef HAVE_ROCPRIM
     using BlockReduce = rocprim::block_reduce<real, BLOCK_DIM_X,
             rocprim::block_reduce_algorithm::using_warp_reduce, BLOCK_DIM_Y>;
@@ -217,14 +255,15 @@ int main(int argc, char* argv[]) {
     long long unsigned int mesh_size_per_rank = nx * (((ny - 2) + size - 1) / size + 2);
     long long unsigned int required_symmetric_heap_size =
         2 * mesh_size_per_rank * sizeof(real) *
-        1.1;  // Factor 2 is because 2 arrays are allocated - a and a_new
-              // 1.1 factor is just for alignment or other usage
+        5.0;  // Factor 2 is because 2 arrays are allocated - a and a_new
+              // 5.0 factor is just for alignment or other usage
+              // it was the minimum factor required to make it work on the AMD Fund
 
-    char * value = getenv("NVSHMEM_SYMMETRIC_SIZE");
+    char * value = getenv("ROC_SHMEM_HEAP_SIZE");
     if (value) { /* env variable is set */
         long long unsigned int size_env = parse_nvshmem_symmetric_size(value);
         if (size_env < required_symmetric_heap_size) {
-            fprintf(stderr, "ERROR: Minimum NVSHMEM_SYMMETRIC_SIZE = %lluB, Current NVSHMEM_SYMMETRIC_SIZE = %s\n", required_symmetric_heap_size, value);
+            fprintf(stderr, "ERROR: Minimum ROC_SHMEM_HEAP_SIZE = %lluB, Current ROC_SHMEM_HEAP_SIZE = %s\n", required_symmetric_heap_size, value);
             MPI_CHECK(MPI_Finalize());
             return -1;
         }
@@ -232,14 +271,13 @@ int main(int argc, char* argv[]) {
         char symmetric_heap_size_str[100];
         sprintf(symmetric_heap_size_str, "%llu", required_symmetric_heap_size);
         if (!rank && !csv)
-            printf("Setting environment variable NVSHMEM_SYMMETRIC_SIZE = %llu\n", required_symmetric_heap_size);
-        setenv("NVSHMEM_SYMMETRIC_SIZE", symmetric_heap_size_str, 1);
+            printf("Setting environment variable ROC_SHMEM_HEAP_SIZE = %llu\n", required_symmetric_heap_size);
+        setenv("ROC_SHMEM_HEAP_SIZE", symmetric_heap_size_str, 1);
     }
     roc_shmem_init(); //_attr(NVSHMEMX_INIT_WITH_MPI_COMM, &attr);
 
     int npes = roc_shmem_n_pes();
     int mype = roc_shmem_my_pe();
-
     roc_shmem_barrier_all();
 
     bool result_correct = true;
@@ -257,7 +295,6 @@ int main(int argc, char* argv[]) {
     status = hipHostMalloc(&a_ref_h, nx * ny * sizeof(real));
     status = hipHostMalloc(&a_h, nx * ny * sizeof(real));
     runtime_serial = single_gpu(nx, ny, iter_max, a_ref_h, nccheck, !csv && (0 == mype), mype);
-
     roc_shmem_barrier_all();
     // ny - 2 rows are distributed amongst `size` ranks in such a way
     // that each rank gets either (ny - 2) / size or (ny - 2) / size + 1 rows.
@@ -310,14 +347,12 @@ int main(int argc, char* argv[]) {
                                                           chunk_size, ny - 2);
     status = hipGetLastError();
     status = hipDeviceSynchronize();
-
     status = hipStreamCreateWithFlags(&compute_stream, hipStreamNonBlocking);
     status = hipStreamCreate(&reset_l2_norm_stream);
     status = hipEventCreateWithFlags(&compute_done[0], hipEventDisableTiming);
     status = hipEventCreateWithFlags(&compute_done[1], hipEventDisableTiming);
     status = hipEventCreateWithFlags(&reset_l2_norm_done[0], hipEventDisableTiming);
     status = hipEventCreateWithFlags(&reset_l2_norm_done[1], hipEventDisableTiming);
-    
     // TODO: Error checking
     status = hipEventCreate(&communication_event_timers[0]);
     status = hipEventCreate(&communication_event_timers[1]);
@@ -339,12 +374,13 @@ int main(int argc, char* argv[]) {
         if (!csv) printf("Jacobi relaxation: %d iterations on %d x %d mesh\n", iter_max, ny, nx);
     }
 
-    constexpr int dim_block_x = 1024;
-    constexpr int dim_block_y = 1;
+    //constexpr int dim_block_x = 1024;
+    //constexpr int dim_block_y = 1;
+    constexpr int dim_block_x = 32;
+    constexpr int dim_block_y = 32;
     dim3 dim_grid((nx + dim_block_x - 1) / dim_block_x,
                   (chunk_size + dim_block_y - 1) / dim_block_y, 1);
 
-    std::cout << mype << ",dim_grid=" << dim_grid.x << "," << dim_grid.y << "," << dim_grid.z << std::endl;
     int iter = 0;
     if (!mype) {
         for (int i = 0; i < 2; ++i) {
@@ -514,7 +550,7 @@ double single_gpu(const int nx, const int ny, const int iter_max, real* const a_
     int iy_end = ny - 3;
 
     auto status = hipMalloc((void**)&a, nx * ny * sizeof(real));
-    status = hipMalloc((void**)&a_new, nx * ny * sizeof(real));    
+    status = hipMalloc((void**)&a_new, nx * ny * sizeof(real));
 
     status = hipMemset(a, 0, nx * ny * sizeof(real));
     status = hipMemset(a_new, 0, nx * ny * sizeof(real));
@@ -539,8 +575,8 @@ double single_gpu(const int nx, const int ny, const int iter_max, real* const a_
             "check every %d iterations\n",
             iter_max, ny, nx, nccheck);
 
-    constexpr int dim_block_x = 1024;
-    constexpr int dim_block_y = 1;
+    constexpr int dim_block_x = 32;
+    constexpr int dim_block_y = 32;
     dim3 dim_grid((nx + dim_block_x - 1) / dim_block_x, ((ny - 2) + dim_block_y - 1) / dim_block_y,
                   1);
 
