@@ -4,4 +4,7 @@
 # Copyright
 The NVSHMEM and NCCL jacobi code is from https://github.com/NVIDIA/multi-gpu-programming-models.git. Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
 
+# ROC_SHMEM and RCCL
+The ROC_SHMEM and RCCL code are modified from NVIDIA versions.
+
 
