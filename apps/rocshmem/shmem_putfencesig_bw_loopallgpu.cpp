@@ -40,8 +40,11 @@ __global__ void bw(double *data_d, int* flag_d, volatile unsigned int *counter_d
     //if (tid==0 && bid==0) printf("GPU: pe=%d, peer=%d, size=%d\n",pe, peer, len);
     for (i = 0; i < iter; i++) {
     	//if (tid==0 && bid==0) printf("%d, peer=%d, size=%d, iter=%d\n",pe, peer, len,i);
-        roc_shmemx_double_put_nbi_wg(&data_d[0], &data_d[0], len/nblocks ,peer);
-        roc_shmem_fence();
+        //roc_shmemx_double_put_nbi_wg(&data_d[0], &data_d[0], len/nblocks ,peer);
+        roc_shmemx_double_put_nbi_wg(data_d + (bid * (len / nblocks)),
+                                 data_d + (bid * (len / nblocks)),
+                                 len / nblocks, peer);
+	roc_shmem_fence();
         if (tid == 0) {
           roc_shmem_int_p(&flag_d[i], sig, peer);
         }
@@ -92,26 +95,33 @@ int main(int argc, char *argv[]) {
     hipEvent_t start, stop;
 
     int rank,nranks;
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+    //MPI_Init(&argc, &argv);
+    //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //MPI_Comm_size(MPI_COMM_WORLD, &nranks);
     // printf("Rank %d, MPI \n",rank);
     // fflush(stdout);
-
-    // Set the device before calling `roc_shmem_init`
-    int ndevices, get_cur_dev;
-    CHECK_HIP(hipGetDeviceCount(&ndevices));
-    CHECK_HIP(hipSetDevice(rank % ndevices));
-    CHECK_HIP(hipGetDevice(&get_cur_dev));
-
-    CHECK_HIP(hipEventCreate(&start));
-    CHECK_HIP(hipEventCreate(&stop));
-
+    
     roc_shmem_init();
     mype = roc_shmem_my_pe();
     npes = roc_shmem_n_pes();
     printf("Rank %d, ROC_SHMEM \n",mype);
     fflush(stdout);
+    roc_shmem_barrier_all();
+	
+    // Set the device before calling `roc_shmem_init`
+    int ndevices, get_cur_dev;
+    CHECK_HIP(hipGetDeviceCount(&ndevices));
+    CHECK_HIP(hipSetDevice(mype % ndevices));
+    CHECK_HIP(hipGetDevice(&get_cur_dev));
+
+    CHECK_HIP(hipEventCreate(&start));
+    CHECK_HIP(hipEventCreate(&stop));
+
+    //roc_shmem_init();
+    //mype = roc_shmem_my_pe();
+    //npes = roc_shmem_n_pes();
+    //printf("Rank %d, ROC_SHMEM \n",mype);
+    //fflush(stdout);
 
     const char* gpu_id_list;
     const char* rocr_visible_devices = getenv("ROCR_VISIBLE_DEVICES");
