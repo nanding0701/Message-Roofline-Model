@@ -61,7 +61,9 @@ endif()
 ##########################################################################################
 #       Check and set CMAKE_CUDA_HOST_COMPILER
 ##########################################################################################
-if(NOT DEFINED CMAKE_CUDA_HOST_COMPILER)
+option(USE_CUDA "Enable CUDA.." ON)
+
+if(NOT DEFINED CMAKE_CUDA_HOST_COMPILER AND USE_CUDA)
     message(STATUS "CMAKE_CUDA_HOST_COMPILER not provided\n=> Setting CMAKE_CUDA_HOST_COMPILER=$(which CC)")
 
     # run which CC to find the CUDA_HOST_COMPILER
@@ -110,8 +112,6 @@ endif()
 
 set(NVSHMEM_PREFIX $ENV{NVSHMEM_PREFIX} CACHE PATH "path to NVSHMEM install directory.")
 set(CUDA_HOME $ENV{CUDA_HOME} CACHE PATH "path to CUDA installation")
-set(MPI_HOME $ENV{MPI_HOME} CACHE PATH "path to MPI installation")
-set(SHMEM_HOME ${MPI_HOME} CACHE PATH "path to SHMEM installation")
 set(CUDA_ARCHITECTURES $ENV{CUDA_ARCHITECTURES} CACHE PATH "CUDA architectures to build for")
 
 option(NVSHMEM_MPI_SUPPORT "Enable compilation of the MPI bootstrap and MPI-specific code" ${NVSHMEM_MPI_SUPPORT_DEFAULT})
@@ -121,6 +121,31 @@ option(NVSHMEM_VERBOSE "Enable the ptxas verbose compilation option" OFF)
 if (USE_NVSHMEM)
     find_package(NVSHMEM REQUIRED HINTS ${NVSHMEM_PREFIX}/lib/cmake/nvshmem)
 endif()
+
+##########################################################################################
+#       ISHMEM settings
+##########################################################################################
+option(USE_ISHMEM "Enable ISHMEM.." OFF)
+
+if (DEFINED ENV{ISHMEM_MPI_SUPPORT})
+    set(ISHMEM_MPI_SUPPORT_DEFAULT $ENV{ISHMEM_MPI_SUPPORT})
+else()
+    set(ISHMEM_MPI_SUPPORT_DEFAULT OFF)
+endif()
+
+set(ISHMEM_PREFIX $ENV{ISHMEM_ROOT} CACHE PATH "path to ISHMEM install directory.")
+option(ISHMEM_MPI_SUPPORT "Enable compilation of the MPI bootstrap and MPI-specific code" ${ISHMEM_MPI_SUPPORT_DEFAULT})
+
+if (USE_ISHMEM)
+    set(ISHMEM_SHMEM_SUPPORT "Enable Compilation of the SHMEM bootstrap and SHMEM specific code" ON)
+    find_package(ISHMEM REQUIRED)
+    set(CMAKE_CXX_COMPILER oshc++)
+    add_compile_options(-fsycl)
+    add_link_options(-fsycl)
+endif()
+
+set(MPI_HOME $ENV{MPI_HOME} CACHE PATH "path to MPI installation")
+set(SHMEM_HOME ${SHMEM_HOME} CACHE PATH "path to SHMEM installation")
 
 ##########################################################################################
 #       Setup CUDA and MPI for aliases
@@ -141,25 +166,14 @@ set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCHITECTURES})
 #       SHMEM support
 ##########################################################################################
 
-if(NVSHMEM_SHMEM_SUPPORT)
-    find_library(
-      SHMEM_LIB
-      NAMES oshmem
-      HINTS ${SHMEM_HOME}
-      PATH_SUFFIXES lib lib64)
-
-    find_path(SHMEM_INCLUDE NAME shmem.h HINTS ${SHMEM_HOME}
-              PATH_SUFFIXES include)
-
-    add_library(shmem IMPORTED INTERFACE)
-    target_link_libraries(shmem INTERFACE ${SHMEM_LIB})
-    target_include_directories(shmem INTERFACE ${SHMEM_INCLUDE})
+if(NVSHMEM_SHMEM_SUPPORT OR ISHMEM_SHMEM_SUPPORT)
+    find_package(SHMEM REQUIRED)
 
     if(NVSHMEM_MPI_SUPPORT)
           separate_arguments(SHMEM_C_LINK_FLAGS NATIVE_COMMAND "${MPI_C_LINK_FLAGS}")
-          target_link_options(shmem INTERFACE ${SHMEM_C_LINK_FLAGS})
-          target_compile_definitions(shmem INTERFACE ${MPI_C_COMPILE_DEFINITIONS})
-          target_compile_options(shmem INTERFACE ${MPI_C_COMPILE_OPTIONS})
+          target_link_options(SHMEM INTERFACE ${SHMEM_C_LINK_FLAGS})
+          target_compile_definitions(SHMEM INTERFACE ${MPI_C_COMPILE_DEFINITIONS})
+          target_compile_options(SHMEM INTERFACE ${MPI_C_COMPILE_OPTIONS})
     endif()
 endif()
 
