@@ -11,6 +11,7 @@ endif()
 # Add mpi apps
 # ----------------------------------------------------------------------------------------#
 
+if (NOT USE_ISHMEM)
 message(STATUS "Adding mpi apps...")
 add_subdirectory(mpi)
 
@@ -27,3 +28,13 @@ add_subdirectory(rocshmem)
 
 message(STATUS "Adding rccl apps...")
 add_subdirectory(rccl)
+endif()
+
+# ----------------------------------------------------------------------------------------#
+# Add ishmem apps
+# ----------------------------------------------------------------------------------------#
+
+if (USE_ISHMEM)
+    message(STATUS "Adding ishmem apps...")
+    add_subdirectory(ishmem)
+endif()
